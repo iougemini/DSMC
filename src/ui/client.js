@@ -123,7 +123,7 @@ export function clientScript() {
     domains: ['域名', COUNTS.total + ' 个域名 · ' + COUNTS.accounts + ' 个账户'],
     expiring: ['续费', '按紧急程度排序，先处理最近到期的'],
     accounts: ['账户', ACCOUNTS.length + ' 个 Cloudflare 账户 · 可增删改'],
-    freedomains: ['免费', '白名单后缀与查询方式'],
+    market: ['米表', '挑选要出售的域名，公开页 /market'],
     notify: ['通知', '到期提醒的渠道与规则'],
     settings: ['设置', '访问密码、数据源、DNSHE 凭证与查询节奏'],
     about: ['关于', 'DSMC · Domain Status Manager for Cloudflare']
@@ -972,8 +972,118 @@ export function clientScript() {
     toast('ok', '已导出 ' + list.length + ' 个域名');
   }
 
+  /* ---------------- 米表 ---------------- */
+  function updateMarketCount() {
+    var el = document.getElementById('mkCount');
+    if (!el) return;
+    el.textContent = document.querySelectorAll('[data-market-row][data-on]').length;
+  }
+
+  function marketField(row, key) {
+    var el = row.querySelector('[data-mk="' + key + '"]');
+    return el ? el.value : '';
+  }
+
+  // 导航 / 友情链接共用：两个列表结构一样，只是容器 id 与 data 属性不同
+  function addLinkRow(listId, tplId, kind, label) {
+    var list = document.getElementById(listId);
+    var tpl = document.getElementById(tplId);
+    var add = list ? list.querySelector('.mk-nav-add') : null;
+    if (!list || !tpl || !add) return;
+    // template 的内容不在主文档树里，所以 saveMarket 的收集循环不会把它算进去
+    var max = Number(list.getAttribute('data-max')) || 6;
+    if (list.querySelectorAll('[data-' + kind + '-row]').length >= max) {
+      toast('warn', '最多 ' + max + ' 项' + label);
+      return;
+    }
+    list.insertBefore(tpl.content.cloneNode(true), add);
+    var fresh = list.querySelectorAll('[data-' + kind + '-row]');
+    var last = fresh[fresh.length - 1];
+    var firstInput = last ? last.querySelector('input') : null;
+    if (firstInput) firstInput.focus();
+  }
+
+  function saveMarket() {
+    var rows = document.querySelectorAll('[data-market-row]');
+    var entries = [];
+    Array.prototype.forEach.call(rows, function (row) {
+      if (!row.hasAttribute('data-on')) return;
+      var feat = row.querySelector('[data-action="mk-featured"]');
+      entries.push({
+        name: row.getAttribute('data-name'),
+        priceType: marketField(row, 'priceType'),
+        price: Number(marketField(row, 'price')) || 0,
+        category: marketField(row, 'category'),
+        description: marketField(row, 'description'),
+        note: marketField(row, 'note'),
+        featured: Boolean(feat && feat.classList.contains('on')),
+        order: Number(marketField(row, 'order')) || 0
+      });
+    });
+
+    var val = function (id) { var el = document.getElementById(id); return el ? el.value : ''; };
+    var enabledEl = document.getElementById('mkEnabled');
+
+    // 链接行只收「名称和地址都填了」的。半填的行是用户加了一半又放弃，
+    // 当成错误报出来太吵，直接忽略更符合预期。
+    // 导航与友情链接结构相同，用 kind 区分 data 属性即可
+    var collectLinks = function (kind) {
+      var out = [];
+      Array.prototype.forEach.call(document.querySelectorAll('[data-' + kind + '-row]'), function (row) {
+        var labelEl = row.querySelector('[data-' + kind + '="label"]');
+        var urlEl = row.querySelector('[data-' + kind + '="url"]');
+        var label = labelEl ? labelEl.value.trim() : '';
+        var url = urlEl ? urlEl.value.trim() : '';
+        if (label && url) out.push({ label: label, url: url });
+      });
+      return out;
+    };
+
+    var payload = {
+      config: {
+        enabled: Boolean(enabledEl && enabledEl.classList.contains('on')),
+        title: val('mkTitle'),
+        intro: val('mkIntro'),
+        contact: {
+          wechat: val('mkWechat'),
+          email: val('mkEmail'),
+          telegram: val('mkTelegram'),
+          community: val('mkCommunity')
+        },
+        nav: collectLinks('nav'),
+        friends: collectLinks('friend'),
+        entries: entries
+      }
+    };
+
+    postJSON('/api/market', payload).then(function (data) {
+      toast('ok', data.message || '米表已保存');
+      // 服务端会做归一化（丢弃非法域名、面议清零价格），刷新一次让页面
+      // 显示的就是真正存下来的值，而不是前端刚才输入的
+      reloadSoon(800);
+    }).catch(function (err) { toast('warn', err.message); });
+  }
+
   /* ---------------- 事件 ---------------- */
   document.addEventListener('click', function (e) {
+    // 关于页的子标签（项目介绍 / 免费域名）。用委托而不是逐个绑定：
+    // 页面重新渲染后按钮是新的，逐个绑定会失效
+    var tab = e.target.closest('[data-subtab]');
+    if (tab) {
+      var key = tab.getAttribute('data-subtab');
+      var bar = tab.parentNode;
+      Array.prototype.forEach.call(bar.querySelectorAll('[data-subtab]'), function (b) {
+        var on = b === tab;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      var wrap = bar.parentNode;
+      Array.prototype.forEach.call(wrap.querySelectorAll('[data-subpanel]'), function (p) {
+        p.hidden = p.getAttribute('data-subpanel') !== key;
+      });
+      return;
+    }
+
     var nav = e.target.closest('[data-view-link]');
     if (nav) { showView(nav.getAttribute('data-view-link')); return; }
 
@@ -988,6 +1098,42 @@ export function clientScript() {
 
       if (action === 'close-drawer') { closeDrawer(); return; }
       if (action === 'close-modal') { closeModal(); return; }
+
+      // 米表：开关类按钮就地翻转，保存时统一收集
+      if (action === 'mk-toggle') {
+        var row = actEl.closest('[data-market-row]');
+        var on = !actEl.classList.contains('on');
+        actEl.classList.toggle('on', on);
+        actEl.setAttribute('aria-checked', on ? 'true' : 'false');
+        if (row) {
+          if (on) row.setAttribute('data-on', '1');
+          else row.removeAttribute('data-on');
+        }
+        updateMarketCount();
+        return;
+      }
+      if (action === 'mk-featured' || action === 'mk-enabled') {
+        var on2 = !actEl.classList.contains('on');
+        actEl.classList.toggle('on', on2);
+        actEl.setAttribute('aria-checked', on2 ? 'true' : 'false');
+        return;
+      }
+      if (action === 'market-save') { saveMarket(); return; }
+      if (action === 'mk-nav-add' || action === 'mk-friend-add') {
+        var isFriend = action === 'mk-friend-add';
+        addLinkRow(
+          isFriend ? 'mkFriends' : 'mkNav',
+          isFriend ? 'mkFriendsTpl' : 'mkNavTpl',
+          isFriend ? 'friend' : 'nav',
+          isFriend ? '友情链接' : '导航'
+        );
+        return;
+      }
+      if (action === 'mk-nav-del' || action === 'mk-friend-del') {
+        var linkRowEl = e.target.closest('[data-nav-row],[data-friend-row]');
+        if (linkRowEl) linkRowEl.remove();
+        return;
+      }
       if (action === 'focus-search') {
         showView('domains');
         var input = document.getElementById('q');

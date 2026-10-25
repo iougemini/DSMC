@@ -1,6 +1,6 @@
 {
   "name": "dsmc",
-  "version": "2.7.0",
+  "version": "2.8.7",
   "description": "DSMC - Domain Status Manager for Cloudflare: 基于 Cloudflare Workers 的域名状态管理系统",
   "type": "module",
   "main": "src/index.js",
@@ -10,6 +10,7 @@
     "tail": "wrangler tail",
     "test": "node --test \"test/**/*.test.js\"",
     "smoke": "node scripts/smoke.mjs",
+    "security": "node scripts/security-audit.mjs",
     "bundle": "esbuild src/index.js --bundle --format=esm --platform=browser --target=es2022 --external:cloudflare:sockets --outfile=dist/worker.js --log-level=warning",
     "preview": "node scripts/render-preview.mjs",
     "check": "node scripts/check.mjs"

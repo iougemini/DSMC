@@ -18,6 +18,7 @@ html[data-theme="dark"]{
   --violet:#A78BFA;--violet-soft:rgba(167,139,250,.13);
   --shadow:0 20px 44px -20px rgba(0,0,0,.9);
   --glow:radial-gradient(1100px 520px at 72% -12%,rgba(76,141,255,.10),transparent 62%);
+  --grid:rgba(255,255,255,.07);
   --hero-glow:radial-gradient(520px 200px at 0% 0%,rgba(245,185,66,.10),transparent 72%);
   --topbar:rgba(7,10,15,.78);
   --chevron:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237C8CA0' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");
@@ -34,6 +35,7 @@ html[data-theme="light"]{
   --violet:#7C3AED;--violet-soft:rgba(124,58,237,.09);
   --shadow:0 12px 30px -14px rgba(15,26,43,.22);
   --glow:radial-gradient(900px 420px at 80% -10%,rgba(37,99,235,.07),transparent 62%);
+  --grid:rgba(15,23,42,.07);
   --hero-glow:radial-gradient(520px 200px at 0% 0%,rgba(245,158,11,.07),transparent 72%);
   --topbar:rgba(255,255,255,.82);
   --chevron:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7B8E' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");
@@ -42,6 +44,15 @@ html[data-theme="light"]{
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
 body::before{content:'';position:fixed;inset:0;background:var(--glow);pointer-events:none;z-index:0}
+/* 网格和柔光分两个伪元素：mask 要单独作用于网格，混在同一个 background 里
+   会把右上角那团柔光一起裁掉。和公开米表页用的是同一套参数（72px 格、7% 不透明度），
+   两个页面切换时背景是连续的 */
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+background:
+repeating-linear-gradient(to right,var(--grid) 0 1px,transparent 1px 72px),
+repeating-linear-gradient(to bottom,var(--grid) 0 1px,transparent 1px 72px);
+-webkit-mask-image:radial-gradient(ellipse 90% 52% at 50% 0%,#000 24%,transparent 82%);
+mask-image:radial-gradient(ellipse 90% 52% at 50% 0%,#000 24%,transparent 82%)}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
 input,select,textarea{font:inherit;color:inherit}
 a{color:inherit;text-decoration:none}
@@ -215,6 +226,25 @@ tr:hover .rowact{opacity:1}
 .chip[data-group="suspended"]:hover{background:var(--danger-soft);color:var(--danger)}
 .chip[data-group="suspended"].on{background:var(--danger);border-color:var(--danger);color:#fff}
 .chip .n{font-size:10.5px;opacity:.62;font-variant-numeric:tabular-nums}
+.subtabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:14px;overflow-x:auto;scrollbar-width:none}
+.subtabs::-webkit-scrollbar{display:none}
+.subtab{position:relative;height:38px;padding:0 14px;border:0;background:transparent;color:var(--text-3);font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;transition:color var(--t)}
+.subtab:hover{color:var(--text)}
+.subtab.on{color:var(--text)}
+.subtab.on::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;border-radius:2px;background:var(--accent)}
+.subtab .n{font-size:10.5px;opacity:.62;font-variant-numeric:tabular-nums;margin-left:4px}
+/* 米表管理表：列多，窄屏靠横向滚动，不要挤成一团 */
+.mk-table{min-width:1020px}
+.mk-table th{white-space:nowrap}
+.mk-table td{vertical-align:middle;padding-top:8px;padding-bottom:8px}
+.mk-table .input,.mk-table .field{height:32px;font-size:12.5px}
+.mk-table .switch{flex:none}
+
+/* 米表自定义导航：名称 + 链接 + 删除，一行一组 */
+.mk-nav{display:grid;gap:8px;max-width:620px}
+.mk-nav-row{display:grid;grid-template-columns:1fr 1.5fr auto;gap:8px;align-items:center}
+.mk-nav-row .input{height:32px;font-size:12.5px}
+.mk-nav-add{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .field{height:34px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);padding:0 28px 0 10px;font-size:12.5px;color:var(--text-2);appearance:none;background-image:var(--chevron);background-repeat:no-repeat;background-position:right 9px center;cursor:pointer;max-width:180px}
 .toolbar-right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .table-foot{display:flex;align-items:center;gap:12px;padding:11px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--text-3);flex-wrap:wrap}

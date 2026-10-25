@@ -18,7 +18,7 @@ export const PROJECT = {
 };
 
 export const CONFIG = {
-  VERSION: "2.7.0",
+  VERSION: "2.8.7",
   // 缓存版本与展示版本分开：改 UI / 改品牌不该导致全量 WHOIS 重新查询。
   // 1.3.0：v2.2.0 把 DNSHE 的 401 兜底值当成正常结果缓存了 7 天，
   // 导致"补好 Key 仍报认证失败"。升版本号让这些中毒缓存一次性作废。

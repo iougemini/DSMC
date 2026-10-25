@@ -1,5 +1,5 @@
 import { appState } from './app-state.js';
-import { CONFIG, getLocale, t } from './config.js';
+import { CONFIG, PROJECT, getLocale, t } from './config.js';
 import { getCookie, verifyAuthToken, createAuthToken, createCookieHeader, createClearCookieHeader } from './auth.js';
 import { validateDomain, validateAction } from './validators.js';
 import { ApiError, ERROR_CODES, ValidationError, createErrorResponse, createSuccessResponse } from './errors.js';
@@ -52,10 +52,37 @@ import {
 } from './managers/notify-store.js';
 import { channelMetas } from './services/notify.js';
 import { generateHTML, generateLoginHTML } from './ui/index.js';
+import { loadMarketConfig, saveMarketConfig } from './managers/market-store.js';
+import { marketHtml, marketEmptyHtml } from './ui/market.js';
+/**
+ * 任一有效会话即可，返回角色名（'admin' / 'access'），都没有就返回 null。
+ *
+ * 用在「访客也要能用」的接口上 —— 目前只有域名页的 WHOIS 刷新。
+ * 管理员手里只有 admin_token，没有 access_token，所以这里不能只认 access，
+ * 否则管理员点刷新会被自己拦下来。
+ */
+async function requireAnySession(request) {
+  const admin = await verifyAuthToken(getCookie(request, 'admin_token'), 'admin');
+  if (admin) return 'admin';
+  const access = await verifyAuthToken(getCookie(request, 'access_token'), 'access');
+  if (access) return 'access';
+  return null;
+}
+
 export async function handleManualQuery(request) {
   if (request.method !== "POST") {
     return new Response(JSON.stringify({ error: "只支持POST请求" }), {
       status: 405,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  // 手动查询是管理员功能（入口按钮只在管理面板出现）。没有这道校验时，
+  // 任何人都能拿这个 Worker 当免费 WHOIS 代理，白嫖第三方配额
+  const admin = await verifyAuthToken(getCookie(request, 'admin_token'), 'admin');
+  if (!admin) {
+    return new Response(JSON.stringify({ error: '需要管理员权限' }), {
+      status: 401,
       headers: { "Content-Type": "application/json" }
     });
   }
@@ -1025,13 +1052,16 @@ function hashString(str) {
  *
  * 用 no-cache 而不是 no-store：允许浏览器留副本，但每次使用前必须回来验证。
  */
-export function htmlResponse(request, html) {
+export function htmlResponse(request, html, options = {}) {
   const etag = '"' + hashString(html) + '"';
+  // 公开页（米表）不带任何用户相关状态，可以让 CDN 缓存一分钟；后台与访客页
+  // 必须 private + Vary: Cookie，否则不同账号会拿到别人的页面
+  const isPublic = options.public === true;
   const headers = {
     'Content-Type': 'text/html; charset=utf-8',
-    'Cache-Control': 'private, no-cache, must-revalidate',
+    'Cache-Control': isPublic ? 'public, max-age=60, must-revalidate' : 'private, no-cache, must-revalidate',
     'ETag': etag,
-    Vary: 'Cookie'
+    ...(isPublic ? {} : { Vary: 'Cookie' })
   };
 
   const inm = request && request.headers ? request.headers.get('if-none-match') : null;
@@ -1067,13 +1097,31 @@ export async function handleFrontend(request, env, ctx) {
     // 如果设置了访问密码,验证token
     // 注意要同时判断明文（环境变量）和哈希（KV 设置），只判断前者会让
     // 「在设置页设了密码」的部署变成完全公开
-    if (appState.ACCESS_PASSWORD || appState.ACCESS_PASSWORD_HASH) {
-      const token = getCookie(request, 'access_token');
-      const payload = await verifyAuthToken(token, 'access');
+    const authEnabled = Boolean(appState.ACCESS_PASSWORD || appState.ACCESS_PASSWORD_HASH);
 
-      if (!payload) {
-        return Response.redirect(`${new URL(request.url).origin}/login`, 302);
+    const token = getCookie(request, 'access_token');
+    const payload = await verifyAuthToken(token, 'access');
+    const loggedIn = Boolean(payload);
+
+    // 未登录的访客不该看到内部面板，而是公开米表 —— 首页就是这个站点的门面。
+    // 只要米表开着就去米表，**有访问密码也一样**：米表本来就对所有人开放，
+    // 密码保护的是面板。早先只在「无密码」时跳转，导致设过密码的部署永远进不了米表。
+    // 已登录的人仍然直接进面板 —— 站主自己点首页不该被踢回展示页。
+    if (!loggedIn) {
+      const kv = appState.env ? appState.env.DOMAIN_INFO : null;
+      const market = await loadMarketConfig(kv);
+      // 跳转不带缓存：以前出过「改了跳转规则、浏览器还按老结果跳」的情况，
+      // 一个 no-store 省掉一整轮「是不是没部署成功」的排查
+      const go = to => new Response(null, {
+        status: 302,
+        headers: { Location: to, 'Cache-Control': 'no-store' }
+      });
+      if (market.enabled || !authEnabled) {
+        // 用重定向而不是直接渲染：/market 是一个独立的公开地址，可以直接分享出去，
+        // 两种入口渲染同一份页面，不会出现"首页和米表长得不一样"的分叉
+        return go(new URL(request.url).origin + '/market');
       }
+      return go(`${new URL(request.url).origin}/login`);
     }
 
     const startedAt = Date.now();
@@ -1090,10 +1138,112 @@ export async function handleFrontend(request, env, ctx) {
       ms: Date.now() - startedAt
     });
 
-    return htmlResponse(request, generateHTML(domainsWithInfo, false, { pending }));
+    // 概览页要展示精选域名，访客也得看得到 —— 米表内容本来就对所有人公开，
+    // 这里给访客的同样是归一化后的条目，没有额外字段。
+    // loadMarketConfig 走 KV 缓存，不会为这一屏多打一次请求
+    const market = await loadMarketConfig(appState.env ? appState.env.DOMAIN_INFO : null);
+
+    return htmlResponse(request, generateHTML(domainsWithInfo, false, { pending, market }));
   } catch (error) {
     console.error('前台页面异常:', error);
     return new Response(`页面加载失败: ${error.message}`, { status: 500 });
+  }
+}
+
+/* ---------------- 米表（公开页 + 管理接口） ---------------- */
+
+/**
+ * 公开的米表页。**不做任何鉴权**，所以这里的每一个字段都要有明确来源：
+ * 域名、注册日、到期日来自域名数据，其余（价格/卖点/分类/备注）来自
+ * market-store 的归一化结果。注册商、账户、备注、巡检结论一律不进页面。
+ */
+export async function handleMarket(request, env, ctx) {
+  try {
+    const kv = appState.env ? appState.env.DOMAIN_INFO : null;
+    const config = await loadMarketConfig(kv);
+
+    if (!config.enabled || !config.entries.length) {
+      return htmlResponse(request, marketEmptyHtml({
+        project: PROJECT,
+        version: CONFIG.VERSION,
+        reason: config.enabled ? '米表里还没有添加域名' : '本站暂未开放域名出售',
+        // 空页也要带友链：这一页是直接分享出去的落地页，页脚空着会显得没做完
+        friends: config.friends
+      }), { public: true });
+    }
+
+    const wanted = new Set(config.entries.map(e => e.name));
+    const zones = await fetchCloudflareDomainsInfo();
+    const picked = zones.filter(z => wanted.has(String(z.name || '').toLowerCase()));
+    const { domains: infos } = await fetchDomainInfo(picked, { budgetMs: 3000 });
+    const byName = new Map(infos.map(d => [d.name, d]));
+
+    // 白名单组装：只把两个日期接上去，别的字段一个都不带
+    const items = config.entries.map(entry => {
+      const info = byName.get(entry.name) || {};
+      return {
+        ...entry,
+        registrationDate: info.registrationDate || null,
+        expirationDate: info.expirationDate || null
+      };
+    });
+
+    return htmlResponse(request, marketHtml({
+      project: PROJECT,
+      version: CONFIG.VERSION,
+      config,
+      items
+    }), { public: true });
+  } catch (error) {
+    console.error('米表页面异常:', error);
+    return new Response(`页面加载失败: ${error.message}`, { status: 500 });
+  }
+}
+
+/** 米表配置读写：只有管理员能碰 */
+export async function handleMarketApi(request) {
+  const token = getCookie(request, 'admin_token');
+  const payload = await verifyAuthToken(token, 'admin');
+
+  if (!payload) {
+    return new Response(JSON.stringify({ error: '需要管理员权限' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  const kv = appState.env ? appState.env.DOMAIN_INFO : null;
+
+  try {
+    if (request.method === 'GET') {
+      const config = await loadMarketConfig(kv);
+      return new Response(JSON.stringify({ config }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (request.method !== 'POST') {
+      return new Response('Method Not Allowed', { status: 405 });
+    }
+
+    if (!kv) {
+      return jsonError(new Error('KV 未绑定（DOMAIN_INFO），无法保存米表配置'), 400);
+    }
+
+    const body = await request.json();
+    const config = await saveMarketConfig(kv, body && body.config ? body.config : body);
+
+    const audit = getAuditLogger(appState.env);
+    if (audit) {
+      await audit.log(AUDIT_EVENTS.MARKET_UPDATED, {
+        enabled: config.enabled,
+        entries: config.entries.length
+      }, request);
+    }
+
+    return jsonOk('米表已保存', { config });
+  } catch (error) {
+    return jsonError(error, 400);
   }
 }
 
@@ -1121,7 +1271,9 @@ export async function handleAdmin(request, env, ctx) {
       ms: Date.now() - startedAt
     });
 
-    return htmlResponse(request, generateHTML(domainsWithInfo, true, { pending }));
+    const market = await loadMarketConfig(env ? env.DOMAIN_INFO : null);
+
+    return htmlResponse(request, generateHTML(domainsWithInfo, true, { pending, market }));
   } catch (error) {
     console.error('管理页面异常:', error);
     return new Response(`管理页面加载失败: ${error.message}`, { status: 500 });
@@ -1364,8 +1516,22 @@ export async function handleAuditLogs(request, env) {
   }
 }
 
-export async function handleWhoisRequest(domain) {
+export async function handleWhoisRequest(request, domain) {
   try {
+    // 访客也能点域名页的「刷新 WHOIS」，所以不要求 admin —— 但必须登录。
+    // 这道校验原本是缺的：未登录就能让 Worker 去查任意域名（消耗第三方配额），
+    // 而且查到的结果还会回写 KV
+    const session = await requireAnySession(request);
+    if (!session) {
+      return new Response(JSON.stringify({
+        error: true,
+        message: '需要登录'
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     console.log('处理WHOIS请求: ' + domain);
 
     if (!domain) {

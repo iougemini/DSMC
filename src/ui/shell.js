@@ -5,7 +5,7 @@ import { escapeHtml, safeJson } from './data.js';
 import { FAVICON_LINK, THEME_COLOR_META } from './favicon.js';
 import {
   overviewView, domainsView, expiringView, accountsView,
-  freeDomainsView, settingsView, notifyView, aboutView
+  marketView, settingsView, notifyView, aboutView
 } from './views.js';
 import { formsHtml } from './forms.js';
 import { clientScript } from './client.js';
@@ -47,8 +47,10 @@ export function renderPage(model) {
       navItem('domains', 'globe', '域名', stats.total, false) +
       navItem('expiring', 'clock', '续费', alertCount, false) +
       '<div class="nav-label">管理</div>' +
-      navItem('accounts', 'layers', '账户', null, false) +
-      navItem('freedomains', 'tag', '免费', null, false) +
+      // 账户页只有管理员能看：访客看到的不只是"只读"，而是账户标签、Cloudflare
+      // 用户名和 Token 掩码 —— 这些不该出现在一个只读视图里
+      (isAdmin ? navItem('accounts', 'layers', '账户', null, false) : '') +
+      (isAdmin ? navItem('market', 'tag', '米表', null, false) : '') +
       (isAdmin ? navItem('notify', 'bell', '通知', null, false) : '') +
       (isAdmin ? navItem('settings', 'sliders', '设置', null, false) : '') +
       '<div class="nav-label">项目</div>' +
@@ -81,6 +83,9 @@ export function renderPage(model) {
         (isAdmin ? '<button class="btn icon" data-action="manual-query" title="手动 WHOIS 查询" aria-label="手动 WHOIS 查询">' + icon('globe', 16) + '</button>' : '') +
         (isAdmin ? '<button class="btn icon" id="btnRefresh" data-action="refresh-all" title="刷新全部" aria-label="刷新全部">' + icon('refresh', 16) + '</button>' : '') +
         (isAdmin ? '<button class="btn primary" id="btnAdd" data-action="add-domain">' + icon('plus', 15) + '添加域名</button>' : '') +
+        // 米表入口对所有登录用户开放：访客本来就是买家，看得到报价才有意义。
+        // 新开窗口 —— 点一下就去另一个标签页，面板这边的筛选和滚动位置都还在
+        '<a class="btn ghost" href="/market" target="_blank" rel="noopener" title="打开公开米表">' + icon('tag', 15) + '查看米表</a>' +
         (showLogout ? '<a class="btn icon" href="' + logoutHref + '" title="退出登录" aria-label="退出登录">' + icon('logout', 16) + '</a>' : '') +
       '</div>' +
     '</header>' +
@@ -89,13 +94,15 @@ export function renderPage(model) {
       '<section data-view="overview">' + overviewView(model) + '</section>' +
       '<section data-view="domains" hidden>' + domainsView(model) + '</section>' +
       '<section data-view="expiring" hidden>' + expiringView(model) + '</section>' +
-      '<section data-view="accounts" hidden>' + accountsView(model) + '</section>' +
-      '<section data-view="freedomains" hidden>' + freeDomainsView(model) + '</section>' +
+      (isAdmin ? '<section data-view="accounts" hidden>' + accountsView(model) + '</section>' : '') +
+      (isAdmin ? '<section data-view="market" hidden>' + marketView(model) + '</section>' : '') +
       (isAdmin ? '<section data-view="notify" hidden>' + notifyView(model) + '</section>' : '') +
       (isAdmin ? '<section data-view="settings" hidden>' + settingsView(model) + '</section>' : '') +
       '<section data-view="about" hidden>' + aboutView(model) + '</section>' +
     '</div>' +
-    footerHtml({ version, project }) +
+    // 友链是全站页脚的一部分：公开页、访客面板、管理员面板长得一样。
+    // model.market 可能为空（没读配置的场景），退化成不渲染这一排
+    footerHtml({ version, project, friends: (model.market && model.market.friends) || [] }) +
   '</div></div>';
 
   const overlays = '<div class="backdrop" id="backdrop" data-action="close-drawer"></div>' +    '<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="域名详情"></aside>' +
@@ -118,7 +125,10 @@ export function renderPage(model) {
       lookup: e.lookup || null
     })),
     // 管理页数据：账户 / DNSHE 凭证 / 设置 / 通知渠道
-    accounts: model.accounts || [],
+    // 访客不下发 accounts：页面已经没有账户视图了，数据还塞在 HTML 里等于白删
+    accounts: isAdmin ? (model.accounts || []) : [],
+    // 米表配置只给管理页：访客不需要它，公开页的渲染也不走这条数据
+    market: isAdmin ? (model.market || null) : null,
     accountSource: model.accountSource || 'none',
     dnshe: model.dnsheCredentials || [],
     dnsheEnv: model.dnsheEnv || { hasKey: false, hasSecret: false },

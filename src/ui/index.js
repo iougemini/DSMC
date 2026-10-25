@@ -36,6 +36,8 @@ export function generateHTML(domains, isAdmin, extras = {}) {
       notify: publicNotifyConfig(appState.notifyConfig),
       notifyState: appState.notifyState || null,
       notifyTypes: channelMetas(),
+      // 米表配置：由 handleAdmin 从 KV 读好传进来（这里不能 await）
+      market: extras.market || null,
       sessionHours: appState.SESSION_HOURS,
       // 本次渲染没来得及查询的域名数量（页面顶部据此提示"正在后台补全"）
       pending: Number(extras.pending) || 0

@@ -2,6 +2,7 @@
 import { icon } from './icons.js';
 import { escapeHtml, fmtDate, meter, groupByAccount, weekBuckets } from './data.js';
 import { LOOKUP_LABELS, SOURCE_LABELS } from '../managers/free-domain.js';
+import { MARKET_CATEGORIES, MAX_NAV, MAX_FRIENDS, sortEntries, formatPrice } from '../managers/market-store.js';
 
 const esc = escapeHtml;
 
@@ -126,6 +127,15 @@ export function overviewView(model) {
   const maxBar = Math.max.apply(null, bars.map(b => b.count).concat([1]));
   const accounts = groupByAccount(domains).slice(0, 4);
 
+  // 精选域名：米表里勾选展示的那些。它回答的是「我挂出去卖了什么」，
+  // 和上面的「该续费了」不是一回事。
+  // 只在米表启用且有条目时出现 —— 一块空的曝光位比没有更碍眼。
+  const market = model.market;
+  const marketItems = (market && market.enabled && Array.isArray(market.entries))
+    ? sortEntries(market.entries)
+    : [];
+  const infoByName = new Map(domains.map(d => [d.name, d]));
+
   const hasAlert = stats.suspended > 0 || stats.expiring > 0;
   const heroTone = hasAlert ? '' : ' ok';
   // 注册局异常优先于到期提醒：到期是"未来某天会出事"，异常是"现在就不能用了"
@@ -178,14 +188,49 @@ export function overviewView(model) {
       '</div>' +
     '</section>' +
 
-    '<section class="card">' +
-      '<div class="card-head"><h3>账户</h3><button class="sub" data-view-link="accounts" style="color:var(--accent-2)">全部 ' + icon('arrow', 12) + '</button></div>' +
-      '<div class="card-body" style="padding-top:8px"><ul class="acct-list">' +
-        accounts.map(a => '<li class="acct-item"><span class="favi">' + esc(a.name.charAt(0)) + '</span>' +
-          '<div><b>' + esc(a.name) + '</b><small>' + a.domains.length + ' 个域名</small></div>' +
-          '<span class="num">' + (a.expiring + a.expired > 0 ? '<span style="color:var(--warn)">' + (a.expiring + a.expired) + ' 待处理</span>' : '正常') + '</span></li>').join('') +
-      '</ul></div>' +
-    '</section>' +
+    // 账户卡只在管理页出现。访客看不到账户页，这里再挂一张"账户"卡片
+    // 就成了「点了没反应」的入口
+    (isAdmin
+      ? '<section class="card">' +
+          '<div class="card-head"><h3>账户</h3><button class="sub" data-view-link="accounts" style="color:var(--accent-2)">全部 ' + icon('arrow', 12) + '</button></div>' +
+          '<div class="card-body" style="padding-top:8px"><ul class="acct-list">' +
+            accounts.map(a => '<li class="acct-item"><span class="favi">' + esc(a.name.charAt(0)) + '</span>' +
+              '<div><b>' + esc(a.name) + '</b><small>' + a.domains.length + ' 个域名</small></div>' +
+              '<span class="num">' + (a.expiring + a.expired > 0 ? '<span style="color:var(--warn)">' + (a.expiring + a.expired) + ' 待处理</span>' : '正常') + '</span></li>').join('') +
+          '</ul></div>' +
+        '</section>'
+      : '') +
+
+    // 精选域名：米表勾选的都在这里列出来，省得为了看一眼报价再开一次米表页。
+    // 域名列表为空时上面已经 return 了，所以这里不用再判空
+    (marketItems.length
+      ? '<section class="card span3">' +
+          '<div class="card-head"><h3>精选域名</h3>' +
+            '<span class="sub">米表中展示 ' + marketItems.length + ' 个</span>' +
+            '<a class="btn sm ghost" href="/market" target="_blank" rel="noopener" style="margin-left:auto">' +
+              '查看米表 ' + icon('arrow', 13) + '</a>' +
+          '</div>' +
+          '<div class="table-wrap"><table class="table">' +
+            '<thead><tr><th>域名</th><th class="col-opt">分类</th><th class="col-opt">卖点</th>' +
+              '<th class="right">报价</th><th class="col-opt">到期</th></tr></thead>' +
+            '<tbody>' + marketItems.map(e => {
+              // 后缀弱化显示，和米表卡片一个读法：一眼先看到名字本身
+              const dot = String(e.name || '').indexOf('.');
+              const info = infoByName.get(e.name);
+              return '<tr>' +
+                '<td>' + (e.featured ? '<span class="pill warn"><i></i>精品</span> ' : '') +
+                  '<b>' + esc(dot > 0 ? e.name.slice(0, dot) : e.name) + '</b>' +
+                  '<span class="muted">' + esc(dot > 0 ? e.name.slice(dot) : '') + '</span></td>' +
+                '<td class="muted col-opt">' + esc(e.category || '—') + '</td>' +
+                '<td class="muted col-opt">' + esc(e.description || '—') + '</td>' +
+                '<td class="right">' + esc(formatPrice(e)) + '</td>' +
+                '<td class="muted col-opt">' + (info ? esc(fmtDate(info.expirationDate)) : '—') + '</td>' +
+              '</tr>';
+            }).join('') + '</tbody>' +
+          '</table></div>' +
+          '<div class="table-foot"><span>这里是在「米表」页勾选展示的域名，要改去米表页</span></div>' +
+        '</section>'
+      : '') +
 
     '<section class="card span3">' +
       '<div class="card-head"><h3>需要关注</h3><span class="sub">' + attention.length + ' 个域名</span></div>' +
@@ -449,7 +494,7 @@ export function settingsView(model) {
     '<section class="card">' +
       '<div class="card-head"><h3>访问控制</h3><span class="sub">保存后立即生效</span></div>' +
       '<div class="card-body grid2">' +
-        pwdRow('accessPassword', '访问密码', 'accessPasswordSet', 'accessPasswordSource', '访客打开首页需要输入的密码，留空则任何人都能访问。') +
+        pwdRow('accessPassword', '访问密码', 'accessPasswordSet', 'accessPasswordSource', '访客打开首页需要输入的密码。留空即进入匿名模式：首页跳转到公开的米表页 /market，内部面板只留在 /admin。') +
         pwdRow('adminPassword', '管理员密码', 'adminPasswordSet', 'adminPasswordSource', '进入管理后台、修改配置需要输入的密码。') +
         '<label class="frow"><span>会话有效期（小时）</span>' +
           '<input class="input" type="number" name="sessionHours" min="1" max="720" value="' + esc(s.sessionHours || 24) + '">' +
@@ -817,6 +862,158 @@ export function freeDomainsView(model) {
 }
 
 /** 关于页：项目介绍、仓库、社群、数据来源 */
+/**
+ * 米表管理页。
+ *
+ * 行的来源是「域名列表 ∪ 米表已有条目」的并集：米表里的域名可能已经不在
+ * 域名列表里了（Zone 被删、自定义域名被移除）。如果只按域名列表渲染，
+ * 这些条目会在保存时被静默丢掉 —— 用户不会收到任何提示，价格就没了。
+ */
+export function marketView(model) {
+  const m = model.market || {};
+  const entries = Array.isArray(m.entries) ? m.entries : [];
+  const contact = m.contact || {};
+  const domains = model.domains || [];
+  const entryMap = new Map(entries.map(e => [e.name, e]));
+
+  // 一行链接 = 名称 + 链接。留空的行保存时会被跳过，所以模板行可以空着渲染。
+  // 导航和友情链接同构，只是落点不同（顶栏 / 页脚），用 kind 区分 data 属性，
+  // 免得两边的收集循环互相把对方的行也算进去
+  const linkRow = (item, kind, labelMax, placeholder) => {
+    const it = item || {};
+    return '<div class="mk-nav-row" data-' + kind + '-row>' +
+      '<input class="input" data-' + kind + '="label" maxlength="' + labelMax + '" value="' + esc(it.label || '') + '" placeholder="' + placeholder + '">' +
+      '<input class="input" data-' + kind + '="url" maxlength="200" value="' + esc(it.url || '') + '" placeholder="https://… 或 /路径">' +
+      '<button type="button" class="btn sm ghost" data-action="mk-' + kind + '-del" aria-label="删除这一项">' + icon('x', 14) + '</button>' +
+    '</div>';
+  };
+  const navRow = item => linkRow(item, 'nav', 12, '名称（如 全部域名）');
+  const friendRow = item => linkRow(item, 'friend', 20, '名称（如 域名导航）');
+  const navRows = Array.isArray(m.nav) ? m.nav : [];
+  const friendRows = Array.isArray(m.friends) ? m.friends : [];
+
+  const rows = domains.map(d => ({
+    name: d.name,
+    expirationDate: d.expirationDate,
+    status: d.status,
+    entry: entryMap.get(d.name) || null,
+    stale: false
+  }));
+  for (const e of entries) {
+    if (!rows.some(r => r.name === e.name)) {
+      rows.push({ name: e.name, expirationDate: null, status: null, entry: e, stale: true });
+    }
+  }
+  rows.sort((a, b) => a.name.localeCompare(b.name));
+
+  const selected = rows.filter(r => r.entry).length;
+
+  const rowHtml = r => {
+    const e = r.entry || {};
+    const on = Boolean(r.entry);
+    const type = e.priceType === 'inquire' ? 'inquire' : 'fixed';
+
+    return '<tr data-market-row data-name="' + esc(r.name) + '"' + (on ? ' data-on="1"' : '') + '>' +
+      '<td><button type="button" class="switch' + (on ? ' on' : '') + '" data-action="mk-toggle" ' +
+        'role="switch" aria-checked="' + (on ? 'true' : 'false') + '" aria-label="在米表中展示"></button></td>' +
+      '<td><b>' + esc(r.name) + '</b>' +
+        (r.stale ? ' <span class="pill danger"><i></i>不在域名列表</span>' : '') + '</td>' +
+      '<td class="muted">' + esc(fmtDate(r.expirationDate)) + '</td>' +
+      '<td><select class="field" data-mk="priceType">' +
+        '<option value="fixed"' + (type === 'fixed' ? ' selected' : '') + '>一口价</option>' +
+        '<option value="inquire"' + (type === 'inquire' ? ' selected' : '') + '>面议</option>' +
+      '</select></td>' +
+      '<td><input class="input" data-mk="price" type="number" min="0" step="1" style="width:96px" ' +
+        'value="' + esc(e.price || '') + '" placeholder="0"></td>' +
+      '<td><input class="input" data-mk="category" list="mk-categories" style="width:96px" ' +
+        'value="' + esc(e.category || '') + '" placeholder="品牌"></td>' +
+      '<td><input class="input" data-mk="description" style="min-width:180px" ' +
+        'value="' + esc(e.description || '') + '" placeholder="一句话卖点（60 字内）"></td>' +
+      '<td><input class="input" data-mk="note" style="width:140px" ' +
+        'value="' + esc(e.note || '') + '" placeholder="备注（可选）"></td>' +
+      '<td><button type="button" class="switch' + (e.featured ? ' on' : '') + '" data-action="mk-featured" ' +
+        'role="switch" aria-checked="' + (e.featured ? 'true' : 'false') + '" aria-label="标记为精品"></button></td>' +
+      '<td><input class="input" data-mk="order" type="number" style="width:64px" ' +
+        'value="' + esc(Number.isFinite(e.order) ? e.order : 0) + '"></td>' +
+    '</tr>';
+  };
+
+  return '<section class="card">' +
+      // 页面标题已经是「米表」了，卡片头再写一遍就是重复，这里写它管的是什么
+      '<div class="card-head"><h3>页面设置</h3>' +
+        '<span class="sub">公开地址 <a href="/market" target="_blank" rel="noopener">/market</a>' +
+        '<button type="button" class="btn sm ghost" data-action="copy-text" data-copy="/market" style="margin-left:6px">复制</button></span>' +
+      '</div>' +
+      '<div class="card-body grid2">' +
+        '<label class="frow"><span>启用米表</span>' +
+          '<div style="display:flex;align-items:center;gap:10px">' +
+            '<button type="button" class="switch' + (m.enabled ? ' on' : '') + '" id="mkEnabled" ' +
+              'data-action="mk-enabled" role="switch" aria-checked="' + (m.enabled ? 'true' : 'false') + '"></button>' +
+            '<span class="hint" style="margin:0">关闭后 /market 显示「暂未开放」</span>' +
+          '</div>' +
+        '</label>' +
+        '<label class="frow"><span>页面标题</span>' +
+          '<input class="input" id="mkTitle" value="' + esc(m.title || '域名精选') + '" maxlength="40"></label>' +
+        '<label class="frow" style="grid-column:1/-1"><span>介绍</span>' +
+          '<textarea class="input" id="mkIntro" maxlength="200" placeholder="一句话说明这些域名怎么交易、能不能过户">' +
+            esc(m.intro || '') + '</textarea></label>' +
+        // 四个固定联系项，顺序就是公开页上的顺序
+        '<label class="frow"><span>微信</span>' +
+          '<input class="input" id="mkWechat" value="' + esc(contact.wechat || '') + '" ' +
+            'placeholder="微信号，或二维码图片地址"></label>' +
+        '<label class="frow"><span>邮箱</span>' +
+          '<input class="input" id="mkEmail" value="' + esc(contact.email || '') + '" placeholder="留空不展示"></label>' +
+        '<label class="frow"><span>Telegram</span>' +
+          '<input class="input" id="mkTelegram" value="' + esc(contact.telegram || '') + '" ' +
+            'placeholder="@用户名、t.me 链接，或二维码图片地址"></label>' +
+        '<label class="frow"><span>交流社区</span>' +
+          '<input class="input" id="mkCommunity" value="' + esc(contact.community || '') + '" ' +
+            'placeholder="https://（留空不展示）"></label>' +
+        '<div class="frow" style="grid-column:1/-1"><span>自定义导航</span>' +
+          '<div class="mk-nav" id="mkNav" data-max="' + MAX_NAV + '">' +
+            // 导航和联系方式并排在同一行，所以条数有上限：再多窄屏会折成三行
+            navRows.map(navRow).join('') +
+            '<div class="mk-nav-add">' +
+              '<button type="button" class="btn sm ghost" data-action="mk-nav-add">+ 添加导航</button>' +
+              '<span class="hint" style="margin:0">最多 ' + MAX_NAV + ' 项，公开页每项都会带一个图标。可填 <code>https://…</code> 或 <code>/路径</code></span>' +
+            '</div>' +
+          '</div>' +
+          '<template id="mkNavTpl">' + navRow(null) + '</template>' +
+        '</div>' +
+        // 友情链接：落在全站页脚信息的上方，公开页与面板页共用
+        '<div class="frow" style="grid-column:1/-1"><span>友情链接</span>' +
+          '<div class="mk-nav" id="mkFriends" data-max="' + MAX_FRIENDS + '">' +
+            friendRows.map(friendRow).join('') +
+            '<div class="mk-nav-add">' +
+              '<button type="button" class="btn sm ghost" data-action="mk-friend-add">+ 添加友情链接</button>' +
+              '<span class="hint" style="margin:0">显示在页脚信息上方，最多 ' + MAX_FRIENDS + ' 项。' +
+                '可填 <code>https://…</code> 或 <code>/路径</code>，留空保存即清空</span>' +
+            '</div>' +
+          '</div>' +
+          '<template id="mkFriendsTpl">' + friendRow(null) + '</template>' +
+        '</div>' +
+      '</div>' +
+    '</section>' +
+
+    '<section class="card" style="margin-top:14px">' +
+      '<div class="card-head"><h3>展示域名</h3>' +
+        '<span class="sub">已选 <b id="mkCount">' + selected + '</b> / ' + rows.length + ' 个</span>' +
+        '<button type="button" class="btn primary sm" data-action="market-save" style="margin-left:auto">保存米表</button>' +
+      '</div>' +
+      '<datalist id="mk-categories">' + MARKET_CATEGORIES.map(c => '<option value="' + esc(c) + '">').join('') + '</datalist>' +
+      (rows.length
+        ? '<div class="table-wrap"><table class="table mk-table">' +
+            '<thead><tr><th>展示</th><th>域名</th><th class="col-opt">到期</th><th>报价</th><th>价格</th>' +
+              '<th>分类</th><th>卖点</th><th class="col-opt">备注</th><th>精品</th><th>排序</th></tr></thead>' +
+            '<tbody>' + rows.map(rowHtml).join('') + '</tbody>' +
+          '</table></div>'
+        : '<div class="empty"><span class="ico">' + icon('inbox', 20) + '</span><b>还没有可展示的域名</b><p>先添加域名，再回来勾选。</p></div>') +
+      '<p class="hint" style="margin:12px 14px 14px">价格留 0 或选「面议」，米表上会显示「价格面议」。' +
+        '排序数字越小越靠前，精品始终排在前面。' +
+        '保存后公开页最多 1 分钟生效（<code>/market</code> 走 60 秒缓存）。</p>' +
+    '</section>';
+}
+
 export function aboutView(model) {
   const { project, version, freeDomains } = model;
   const p = project || {};
@@ -829,7 +1026,10 @@ export function aboutView(model) {
       icon('external', 14) +
     '</a>';
 
-  return '<div class="about-hero card">' +
+  // 关于页分成两个子页：项目介绍 / 免费域名。免费域名原来是独立的一级入口，
+  // 但它本质是「这个项目支持什么」的说明，塞进关于页更符合阅读路径，
+  // 侧栏也因此少一项（窄屏底部导航只有 48px 一格，越少越好）
+  const aboutPanel = '<div class="about-hero card">' +
       '<div class="about-mark">' + icon('shield', 24) + '</div>' +
       '<div class="about-id">' +
         '<div class="about-name">' + esc(p.NAME || 'DSMC') +
@@ -898,4 +1098,11 @@ export function aboutView(model) {
         '</div>' +
       '</section>' +
     '</div>';
+
+  return '<div class="subtabs" role="tablist" aria-label="关于">' +
+      '<button type="button" class="subtab on" role="tab" aria-selected="true" data-subtab="about">项目介绍</button>' +
+      '<button type="button" class="subtab" role="tab" aria-selected="false" data-subtab="free">免费域名 <span class="n">' + activeSuffixes + '</span></button>' +
+    '</div>' +
+    '<div data-subpanel="about">' + aboutPanel + '</div>' +
+    '<div data-subpanel="free" hidden>' + freeDomainsView(model) + '</div>';
 }

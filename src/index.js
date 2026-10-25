@@ -23,7 +23,9 @@ import {
   handleAdminLogout,
   handleWhoisRequest,
   handleAdmin,
-  handleFrontend
+  handleFrontend,
+  handleMarket,
+  handleMarketApi
 } from './handlers.js';
 import { collectDomainsForDigest } from './state.js';
 import { runDigest } from './managers/notify-store.js';
@@ -46,6 +48,7 @@ router.all('/api/dnshe', handleDnsheApi);
 router.all('/api/notify', handleNotifyApi);
 router.all('/api/custom-domains', handleCustomDomainsApi);
 router.all('/api/free-domains', handleFreeDomainsApi);
+router.all('/api/market', handleMarketApi);
 router.post('/api/update', handleApiUpdate);
 router.get('/api/audit-logs', (request, env) => handleAuditLogs(request, env));
 
@@ -58,10 +61,13 @@ router.get('/logout', handleLogout);
 router.get('/admin-logout', handleAdminLogout);
 
 // WHOIS 查询路由
-router.get('/whois/:domain', ({ params }) => handleWhoisRequest(params.domain));
+// 传整个 request：这个接口要校验登录态（访客也能用，但不能匿名）
+router.get('/whois/:domain', request => handleWhoisRequest(request, request.params.domain));
 
 // 页面路由
 router.get('/admin', handleAdmin);
+// 米表：公开页面，不鉴权。无访问密码时 `/` 也会重定向到这里
+router.get('/market', handleMarket);
 router.get('/', handleFrontend);
 
 // 404 处理

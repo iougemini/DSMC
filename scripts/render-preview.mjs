@@ -4,6 +4,8 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { generateHTML, generateLoginHTML } from '../src/ui/index.js';
+import { marketHtml } from '../src/ui/market.js';
+import { PROJECT, CONFIG } from '../src/config.js';
 import { appState } from '../src/app-state.js';
 import { FreeDomainManager } from '../src/managers/free-domain.js';
 import { publicNotifyConfig } from '../src/managers/notify-store.js';
@@ -221,9 +223,88 @@ for (const d of domains) {
   d.isPermanent = freeDomains.isPermanent(d.name) || /^2[9-9]\d{2}-/.test(String(d.expirationDate));
 }
 
-writeFileSync(join(outDir, 'admin.html'), generateHTML(domains, true));
+// 米表管理页的样例配置：勾选前两个域名并设好报价，方便看表格效果
+const previewMarket = {
+  enabled: true,
+  title: '域名精选',
+  intro: '下面这些域名在售，都可以直接询价。',
+  currency: 'CNY',
+  contact: {
+    wechat: 'niepanxiaomibot',
+    email: 'hi@example.com',
+    telegram: '@//niepanxiaomibot/',
+    community: 'https://niege.app'
+  },
+  nav: [
+    { label: 'Blog', url: 'https://blog.example.com' },
+    { label: 'Link', url: 'https://link.example.com' },
+    { label: 'Imgbd', url: 'https://imgbd.example.com' },
+    { label: 'GitHub', url: 'https://github.com/iougemini/DSMC' }
+  ],
+  // 页脚信息上方那一排友情链接
+  friends: [
+    { label: 'NieGe 导航', url: 'https://niege.app' },
+    { label: '域名论坛', url: 'https://example.com/forum' },
+    { label: '主机测评', url: 'https://example.com/host' },
+    { label: '免费域名', url: 'https://example.com/free' },
+    { label: 'DSMC 仓库', url: 'https://github.com/iougemini/DSMC' }
+  ],
+  entries: [
+    { name: domains[0] ? domains[0].name : 'demo.com', priceType: 'fixed', price: 699, description: '三字母，好记', category: '品牌', note: '含一年续费', featured: true, order: 0 },
+    { name: domains[1] ? domains[1].name : 'demo.net', priceType: 'inquire', price: 0, description: '四字母', category: '工具', note: '', featured: false, order: 0 }
+  ]
+};
+
+writeFileSync(join(outDir, 'admin.html'), generateHTML(domains, true, { market: previewMarket }));
 writeFileSync(join(outDir, 'guest.html'), generateHTML(domains, false));
 writeFileSync(join(outDir, 'login.html'), generateLoginHTML('登录 DSMC', '/login', '密码错误'));
 writeFileSync(join(outDir, 'admin-login.html'), generateLoginHTML('管理员登录', '/admin-login'));
+
+// 米表公开页：用演示条目，方便调排版（真实数据来自 config:market）
+const marketConfig = {
+  enabled: true,
+  title: '域名精选',
+  intro: '下面这些域名在售，都可以直接询价。域名均已完成实名，可即时过户。',
+  currency: 'CNY',
+  contact: {
+    wechat: 'niepanxiaomibot',
+    email: 'hi@example.com',
+    telegram: '@//niepanxiaomibot/',
+    community: 'https://niege.app'
+  },
+  nav: [
+    { label: 'Blog', url: 'https://blog.example.com' },
+    { label: 'Link', url: 'https://link.example.com' },
+    { label: 'Imgbd', url: 'https://imgbd.example.com' },
+    { label: 'GitHub', url: 'https://github.com/iougemini/DSMC' }
+  ],
+  // 页脚信息上方那一排友情链接
+  friends: [
+    { label: 'NieGe 导航', url: 'https://niege.app' },
+    { label: '域名论坛', url: 'https://example.com/forum' },
+    { label: '主机测评', url: 'https://example.com/host' },
+    { label: '免费域名', url: 'https://example.com/free' },
+    { label: 'DSMC 仓库', url: 'https://github.com/iougemini/DSMC' }
+  ],
+  entries: [
+    { name: 'nas.life', priceType: 'inquire', price: 0, description: '第一眼有辨识度，往后仍能继续生长。', category: '品牌', note: '', featured: true, order: 0 },
+    { name: 'handsome.im', priceType: 'fixed', price: 158, description: '有辨识度，也有足够自然的亲近感。', category: '生活', note: '', featured: true, order: 0 },
+    { name: 'twos.cn', priceType: 'fixed', price: 699, description: '第一眼有辨识度，往后仍能继续生长。', category: '品牌', note: '含一年续费', featured: true, order: 0 },
+    { name: 'goodup.cn', priceType: 'fixed', price: 99, description: '清晰传达行动感，适合工具与效率型产品。', category: '工具', note: '', featured: false, order: 0 },
+    { name: '9876.link', priceType: 'inquire', price: 0, description: '简洁、直接，也为不同使用场景保留空间。', category: '数字', note: '', featured: false, order: 0 },
+    { name: 'qos.im', priceType: 'fixed', price: 188, description: '带着科技感，也保留品牌继续生长的空间。', category: '工具', note: '', featured: false, order: 1 }
+  ]
+};
+const marketItems = marketConfig.entries.map((entry, i) => ({
+  ...entry,
+  registrationDate: ['2025-03-11', '2024-08-02', '2021-06-19', '2026-01-08', '2015-11-23', '2020-04-17'][i],
+  expirationDate: ['2030-03-11', '2029-08-02', '2027-06-19', '2027-01-08', '2026-11-23', '2027-04-17'][i]
+}));
+writeFileSync(join(outDir, 'market.html'), marketHtml({
+  project: PROJECT,
+  version: CONFIG.VERSION,
+  config: marketConfig,
+  items: marketItems
+}));
 
 console.log('rendered ' + domains.length + ' domains → design/preview/');

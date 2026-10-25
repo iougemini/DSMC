@@ -20,19 +20,39 @@ export const FOOTER_CSS = `
 .site-foot a{color:var(--text-2);text-decoration:none;transition:color 160ms ease}
 .site-foot a:hover{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
 .sf-alt{font-size:10.5px;color:var(--text-3);opacity:.8;letter-spacing:.02em}
+/* 友情链接：页脚信息**上方**独立一排，标签 + 链接居中排开。
+   .site-foot 自带 border-top，所以这一排不再画上边线 —— 两条线挤在一起
+   会让人以为是两个区块。下边线把「友情链接」和版权信息分开。
+   标签不加链接（它是个分组标题，点了没地方去） */
+.site-friends{display:flex;align-items:center;justify-content:center;gap:6px 16px;flex-wrap:wrap;
+width:100%;padding:0 0 12px;margin:0 0 3px;border-bottom:1px solid var(--border);font-size:12px}
+.site-friends b{flex:none;font-weight:600;color:var(--text-2);letter-spacing:.02em}
+.site-friends a{color:var(--text-3);text-decoration:none;transition:color 160ms ease}
+.site-friends a:hover{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
 /* 登录页：卡片居中、body 溢出隐藏，页脚改为固定贴底 */
 .site-foot.fixed{position:fixed;left:0;right:0;bottom:14px;margin:0;padding:0;border:0;z-index:1;max-width:none}
+/* 固定页脚没有左右内边距，友链如果也塞进来会贴着屏幕边。现在登录页不传友链，
+   这一条是兜底：哪天传了也不会变成通栏 */
+.site-foot.fixed .site-friends{padding:0 20px 8px;margin:0 0 8px}
 @media(max-width:520px){
   .site-foot{font-size:11px;padding:16px 14px 18px}
   .sf-dot{display:none}
   .sf-line{gap:4px 10px}
+  .site-friends{padding:0 0 10px;gap:5px 12px;font-size:11.5px}
 }
 `;
 
+/** href 白名单：外链或站内路径。`javascript:` / `data:` 会原样进 href，是现成的 XSS */
+function safeHref(url) {
+  const s = String(url || '').trim();
+  return /^(https?:\/\/[^\s]+|\/(?!\/)[^\s]*)$/i.test(s) ? s : '';
+}
+
 /**
- * @param {{version?: string, fixed?: boolean, project?: object}} [options]
+ * @param {{version?: string, fixed?: boolean, project?: object, friends?: Array}} [options]
  *        fixed=true 用于登录页（卡片居中、页面不滚动，页脚固定贴底）
  *        project 不传时用 config 里的 PROJECT，保证与侧栏品牌一致
+ *        friends 是友情链接 [{ label, url }]，为空时整块不渲染
  */
 export function footerHtml(options = {}) {
   const p = options.project || PROJECT;
@@ -40,7 +60,22 @@ export function footerHtml(options = {}) {
   const year = new Date().getFullYear();
   const alt = p.FULL_NAME;
 
+  // 友情链接排在页脚信息**上方**，是独立一排，不混进 .sf-line ——
+  // 那一行已经够长了，再塞进去窄屏会折成三行
+  const friends = (Array.isArray(options.friends) ? options.friends : [])
+    .map(f => (f && typeof f === 'object' ? { label: String(f.label || '').trim(), href: safeHref(f.url) } : null))
+    .filter(f => f && f.label && f.href);
+  const friendsBlock = friends.length
+    ? '<nav class="site-friends" aria-label="友情链接">' +
+        '<b>友情链接</b>' +
+        friends.map(f =>
+          '<a href="' + esc(f.href) + '" target="_blank" rel="noopener noreferrer">' + esc(f.label) + '</a>'
+        ).join('') +
+      '</nav>'
+    : '';
+
   return '<footer class="site-foot' + (options.fixed ? ' fixed' : '') + '">' +
+    friendsBlock +
     '<div class="sf-line">' +
       '<span class="sf-brand" title="' + esc(alt) + '" aria-label="' + esc(p.NAME + ' · ' + alt) + '">' +
         icon('shield', 13) + '<span>' + esc(p.NAME) + '</span><em>v' + esc(version) + '</em>' +

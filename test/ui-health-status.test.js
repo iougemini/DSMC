@@ -8,10 +8,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeDomains, statusOf, buildStats, groupByAccount } from '../src/ui/data.js';
 
+// 生成"本地日期"字符串，不能用 toISOString() —— 那会转成 UTC。
+// 东八区凌晨 00:30 时 UTC 还是前一天，+100 天会算成 99 天，
+// 于是这套测试每天有 8 小时是红的（2026-10-25 凌晨踩到过）
 function futureDate(days) {
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 }
 
 function healthWith(registry, dns = 'ok') {

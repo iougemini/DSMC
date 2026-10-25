@@ -67,6 +67,16 @@ const kv = fakeKV({
   'config:dnshe': JSON.stringify([
     { id: 'dnshe_1', label: '主账户', key: 'cfsd_demo_key_1234', secret: 'sk_demo_secret', enabled: true }
   ]),
+  'config:market': JSON.stringify({
+    enabled: true,
+    title: '测试米表',
+    intro: '欢迎询价',
+    contact: { wechat: 'demo_wx', email: 'sell@example.com', telegram: 'demo_tg', community: '' },
+    entries: [
+      { name: 'demo.com', priceType: 'fixed', price: 699, description: '三字母', category: '品牌', featured: true },
+      { name: 'other.net', priceType: 'inquire', description: '四字母' }
+    ]
+  }),
   'config:notify': JSON.stringify({
     enabled: false,
     rules: { daysBefore: 30, includeExpired: true, timezoneOffset: 8 },
@@ -112,16 +122,55 @@ check('GET /admin-login 返回管理员登录页', async () => {
   assert.match(await res.text(), /管理员/);
 });
 
-check('未设访问密码时首页公开可访问', async () => {
+check('米表启用时首页跳转到米表', async () => {
   const res = await get('/', envPublic);
-  assert.equal(res.status, 200);
-  assert.match(await res.text(), /<!DOCTYPE html>/i);
+  assert.ok([302, 303, 307].includes(res.status), '实际状态 ' + res.status);
+  assert.match(res.headers.get('location') || '', /\/market$/);
 });
 
-check('设了访问密码后未登录访问首页被重定向', async () => {
+check('米表页不需要登录 —— 有访问密码时也公开可访问', async () => {
+  const res = await get('/market', envProtected);
+  assert.equal(res.status, 200);
+});
+
+check('米表展示域名与报价，且不含内部字段', async () => {
+  const res = await get('/market', envPublic);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.match(html, /测试米表/);
+  assert.match(html, /demo<\/b>|demo<span>/, '缺少域名主体');
+  assert.match(html, /699/, '缺少报价');
+  assert.match(html, /价格面议/, '面议条目应显示「价格面议」');
+  // Telegram 会渲染成 @用户名 的形态，不是原样回显配置里的字符串
+  assert.match(html, /@demo_tg/, '缺少 Telegram 联系方式');
+
+  // 公开页只能有白名单字段：账户、注册商、Token、备注这些一个都不能出现
+  for (const leak of ['demo-token-value', 'cfsd_demo_key', 'Cloudflare Free', 'whoisError']) {
+    assert.ok(!html.includes(leak), '公开页泄漏了内部字段：' + leak);
+  }
+
+  // 公开页允许被缓存一分钟，但不能带上 Vary: Cookie（那是给登录态页面的）
+  assert.match(res.headers.get('cache-control') || '', /public/);
+});
+
+check('米表管理接口需要管理员权限', async () => {
+  const res = await get('/api/market', envPublic);
+  assert.equal(res.status, 401);
+});
+
+check('设了访问密码、米表也启用时，首页同样去米表', async () => {
+  // 米表本来就对所有人开放，密码保护的是内部面板。
+  // 早先只在「无密码」时跳转，导致设过密码的部署永远进不了米表，只能手敲 /market
   const res = await get('/', envProtected);
   assert.ok([302, 303, 307].includes(res.status), '实际状态 ' + res.status);
-  assert.match(res.headers.get('location') || '', /\/login$/);
+  assert.match(res.headers.get('location') || '', /\/market$/);
+});
+
+check('登录入口没有因为首页改跳而丢失', async () => {
+  const res = await get('/login', envProtected);
+  assert.equal(res.status, 200);
+  assert.match(await res.text(), /<form/);
 });
 
 check('访问密码错误返回 401 且提示错误', async () => {
@@ -227,7 +276,7 @@ check('登录后 /admin 渲染出侧栏导航与四个管理入口', async () =>
 
   const html = await res.text();
   const rail = html.slice(html.indexOf('<aside class="rail">'), html.indexOf('</aside>'));
-  for (const item of ['概览', '域名', '续费', '账户', '免费', '通知', '设置', '关于']) {
+  for (const item of ['概览', '域名', '续费', '账户', '通知', '设置', '关于']) {
     assert.ok(rail.includes('>' + item + '<'), '侧栏缺少导航项：' + item);
   }
   // 标签统一后不该再出现旧名字，也不该再有独立的 DNSHE 页

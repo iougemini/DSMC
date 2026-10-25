@@ -111,7 +111,8 @@ wrangler secret put ADMIN_PASSWORD
 | 2 | 账户 | 添加 Cloudflare API Token（保存时会真实校验） | `config:accounts` |
 | 3 | DNSHE | 添加 DNSHE Key/Secret（可选，支持多组） | `config:dnshe` |
 | 4 | 通知 | 配置到期提醒渠道与规则（可选） | `config:notify` |
-| 5 | 免费域名 | 调整免费后缀白名单（可选） | `config:free-domains` |
+| 5 | 关于 → 免费域名 | 调整免费后缀白名单（可选） | `config:free-domains` |
+| 6 | 米表 | 勾选要出售的域名、设报价（可选，公开页 `/market`） | `config:market` |
 
 密码改为哈希存储后，就可以把 `ADMIN_PASSWORD` / `ACCESS_PASSWORD` 从环境变量里删掉了。
 
@@ -251,7 +252,7 @@ v2.2.0 起**只需要 `ADMIN_PASSWORD` 一个变量**就能跑起来，其余都
 
 | 变量名 | 值示例 | 说明 | 必需 |
 |--------|--------|------|------|
-| `ACCESS_PASSWORD` | `your_password` | 前端访问密码，留空表示站点公开 | ❌ 否 |
+| `ACCESS_PASSWORD` | `your_password` | 访客访问密码。留空即匿名模式：未登录访问首页跳转到公开米表 `/market` | ❌ 否 |
 | `CF_API_KEYS` | `["key1","key2"]` | 老版本账户配置，可在「账户」页一键导入 KV | ❌ 否 |
 | `USERNAMES` | `["user1","user2"]` | 与 `CF_API_KEYS` 一一对应 | ❌ 否 |
 | `DNSHE_API_KEY` | `cfsd_xxxx` | 可在「DNSHE」页管理，支持多组 | ❌ 否 |

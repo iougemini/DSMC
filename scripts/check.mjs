@@ -1,4 +1,4 @@
-// 一键自检：单测 → 端到端冒烟 → 打包。
+// 一键自检：单测 → 端到端冒烟 → 安全审计 → 打包。
 //
 // 为什么不用 `npm test && npm run smoke && npm run bundle`：
 // Windows 下 npm 的脚本 runner 跑带 `&&` 和带引号 glob 的复合命令会偶发
@@ -20,6 +20,9 @@ const testFiles = readdirSync(join(root, 'test'))
 const steps = [
   ['单元测试', process.execPath, ['--test', ...testFiles]],
   ['端到端冒烟', process.execPath, ['scripts/smoke.mjs']],
+  // 安全审计跑的是真实路由：打穿鉴权、越权、页面泄漏、注入、缓存头。
+  // 放在打包之前，挂了就没必要再打包
+  ['安全审计', process.execPath, ['scripts/security-audit.mjs']],
   // 用 node 跑 esbuild 的 JS 入口：node_modules/.bin/esbuild 在 Windows 上是
   // 一个 sh 脚本，直接 spawn 会失败（需要 shell:true 才能解析）
   ['esbuild 打包', process.execPath, [
