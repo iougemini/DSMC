@@ -129,3 +129,62 @@ describe('顶栏的米表入口', () => {
     assert.ok(tag.includes('target="_blank"'), '缺少 target=_blank：' + tag);
   });
 });
+
+/* ---------------- 布局：访客没有账户卡 ---------------- */
+
+// 概览是三列网格。访客看不到账户卡，那一格就空着 —— 一块 1/3 宽的空洞
+// 比图表本身更显眼。所以访客下「到期分布」要跨满整行
+describe('概览布局：访客没有账户卡', () => {
+  const expiryCardTag = isAdmin => {
+    const html = overviewView(makeModel(MARKET, isAdmin));
+    const at = html.indexOf('到期分布');
+    assert.ok(at > 0, '没找到到期分布这一块');
+    const open = html.lastIndexOf('<section', at);
+    return html.slice(open, html.indexOf('>', open) + 1);
+  };
+
+  it('访客的到期分布跨满整行', () => {
+    const tag = expiryCardTag(false);
+    assert.ok(tag.includes('span3'), '访客下应独占整行，实际：' + tag);
+  });
+
+  it('管理员的到期分布仍是 2/3，右边留给账户卡', () => {
+    const tag = expiryCardTag(true);
+    assert.ok(tag.includes('span2'), '管理员下应留出账户卡的位置，实际：' + tag);
+    assert.ok(!tag.includes('span3'), '管理员下不该跨满整行');
+  });
+});
+
+/* ---------------- 侧栏分组标题 ---------------- */
+
+describe('侧栏分组标题', () => {
+  const page = isAdmin => renderPage({
+    ...makeModel(MARKET, isAdmin),
+    version: '2.8.7',
+    project: PROJECT,
+    freeDomains: [],
+    accounts: [],
+    accountSource: 'none',
+    dnsheCredentials: [],
+    dnsheEnv: { hasKey: false, hasSecret: false },
+    settings: {},
+    notify: { enabled: false, rules: {}, channels: [] },
+    notifyState: null,
+    notifyTypes: [],
+    authEnabled: true
+  });
+
+  it('访客看不到「管理」分组标题 —— 那四项全被隐藏了，只剩标题挂着', () => {
+    const html = page(false);
+    assert.ok(!html.includes('>管理</div>'), '访客侧栏不该出现管理分组');
+    // 其余两个分组标题照常
+    assert.ok(html.includes('>工作台</div>'));
+    assert.ok(html.includes('>项目</div>'));
+  });
+
+  it('管理员仍然看得到「管理」分组', () => {
+    const html = page(true);
+    assert.ok(html.includes('>管理</div>'));
+    assert.ok(html.includes('>设置</span>') || html.includes('设置'));
+  });
+});

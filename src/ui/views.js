@@ -175,7 +175,8 @@ export function overviewView(model) {
       '</div>' +
     '</section>' +
 
-    '<section class="card span2">' +
+    // 访客没有账户卡，这一块就独占整行 —— 留一个 1/3 的空位比图表本身更显眼
+    '<section class="card ' + (isAdmin ? 'span2' : 'span3') + '">' +
       '<div class="card-head"><h3>到期分布</h3><span class="sub">未来 13 周</span></div>' +
       '<div class="card-body">' +
         '<div class="bars">' + bars.map(b =>

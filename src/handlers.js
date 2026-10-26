@@ -15,6 +15,9 @@ import { testCloudflareApi } from './services/cloudflare.js';
 import { FreeDomainManager, LOOKUP_ENDPOINTS, DEFAULT_SUFFIXES } from './managers/free-domain.js';
 import { FreeDomainLookup } from './services/free-domain-lookup.js';
 import { knownValue, mergeCustomDomainRecord, hasUsableExpiry } from './services/domain-merge.js';
+// 回写规则单独成模块：它的失败是静默的（接口 200、前端提示「已更新」、
+// 但 KV 里那条记录一动不动），必须能直接单测
+import { syncCustomDomainFromLookup, syncNote, SYNC_PROBLEMS } from './services/custom-domain-sync.js';
 import {
   loadFreeDomainEntries,
   updateFreeDomainEntries,
@@ -1550,8 +1553,9 @@ export async function handleWhoisRequest(request, domain) {
     const whoisInfo = await service.query(domain, { forceRefresh: true });
 
     // 查到真数据才回写，规则见 syncCustomDomainFromLookup：
-    // 注册表兜底值、查询报错、用户手工改过的记录都不覆盖
-    await syncCustomDomainFromLookup(domain, whoisInfo);
+    // 注册表兜底值、查询报错不覆盖；用户手工改过的记录在这里**照写**，
+    // 因为点「刷新 WHOIS」就是明确要求用最新数据
+    const sync = await syncCustomDomainFromLookup(domain, whoisInfo, { explicit: true });
 
     // 检查是否有原始数据
     let rawData = null;
@@ -1580,7 +1584,11 @@ export async function handleWhoisRequest(request, domain) {
       // 回显实际查询的域名：用户核对数据时最容易搞混的就是"这条是谁的"
       queriedDomain: domain,
       data: whoisInfo,
-      rawData: rawData
+      rawData: rawData,
+      // 抽屉里也要知道这次到底有没有写进库，否则"已更新"的提示会骗人
+      saved: sync.saved,
+      savedNote: syncNote(domain, sync),
+      problem: SYNC_PROBLEMS.has(sync.reason)
     }), {
       headers: { 'Content-Type': 'application/json' }
     });
@@ -1663,40 +1671,6 @@ export async function handleApiUpdate(request) {
   }
 }
 
-/** 只有这些来源算"真的查到了"，注册表兜底值不写回数据库 */
-const LIVE_SOURCES = new Set(['rdap', 'dnshe', 'whois', 'whois-proxy']);
-
-/**
- * 把一次实时查询的结果回写到自定义域名记录里。
- *
- * 只在"确实查到了"时写：注册表兜底值（Auto-Renewal / 永久）拿来回写，
- * 会把用户手上真实的到期日覆盖成一句占位文本——v2.3.1 踩过这个坑。
- */
-async function syncCustomDomainFromLookup(domain, info) {
-  if (!info || !LIVE_SOURCES.has(info.dataSource)) return false;
-
-  await appState.customDomainManager.loadFromKV();
-  const existing = appState.customDomainManager.getDomain(domain);
-  if (!existing) return false;
-  if (existing.autoUpdateWhois === false) return false; // 手工改过的不动
-
-  const merged = mergeCustomDomainRecord(existing, info);
-  if (merged.lookupStatus === 'missing') return false;
-
-  await appState.customDomainManager.updateDomain(domain, {
-    registrar: merged.registrar,
-    registrationDate: merged.registrationDate,
-    expirationDate: merged.expirationDate,
-    nameServers: merged.nameServers,
-    dataSource: merged.dataSource,
-    isPermanent: merged.isPermanent,
-    lookupStatus: 'ok',
-    lookupError: null,
-    lastWhoisUpdate: new Date().toISOString()
-  });
-  return true;
-}
-
 export async function handleRefreshAction(domain, force) {
   if (domain) {
     console.log('刷新单个域名: ' + domain + ' (强制: ' + force + ')');
@@ -1708,12 +1682,21 @@ export async function handleRefreshAction(domain, force) {
     const service = getWhoisService();
     const info = await service.query(domain, { forceRefresh: Boolean(force) });
 
-    // 查到真数据就落库，抽屉里刷出来的结果下次打开还在
-    await syncCustomDomainFromLookup(domain, info);
+    // 查到真数据就落库，抽屉里刷出来的结果下次打开还在。
+    // 这里是用户点了「刷新」，传 explicit 让冻结的自定义域名也能被覆盖
+    const sync = await syncCustomDomainFromLookup(domain, info, { explicit: true });
+    // 没写回时留一条日志：这类问题在页面上只表现为「刷新了但没变」，
+    // 没有日志就只能靠猜是缓存、是冻结、还是第三方没返回
+    if (!sync.saved && sync.reason !== 'not-custom') {
+      logger.info('刷新未写回自定义域名', { domain, reason: sync.reason, dataSource: info && info.dataSource });
+    }
 
     return {
       success: true,
-      message: `域名 ${domain} 信息已更新`,
+      // 前端据此决定提示的颜色：没问题就是绿的，没写成要说清楚原因
+      saved: sync.saved,
+      problem: SYNC_PROBLEMS.has(sync.reason),
+      message: syncNote(domain, sync),
       data: info
     };
   } else {

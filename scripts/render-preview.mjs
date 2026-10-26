@@ -256,7 +256,9 @@ const previewMarket = {
 };
 
 writeFileSync(join(outDir, 'admin.html'), generateHTML(domains, true, { market: previewMarket }));
-writeFileSync(join(outDir, 'guest.html'), generateHTML(domains, false));
+// 访客页同样带米表配置 —— handleFrontend 就是这么传的（概览的「精选域名」访客可见），
+// 不传的话预览里这一块永远缺失，调版式时看不到真实形态
+writeFileSync(join(outDir, 'guest.html'), generateHTML(domains, false, { market: previewMarket }));
 writeFileSync(join(outDir, 'login.html'), generateLoginHTML('登录 DSMC', '/login', '密码错误'));
 writeFileSync(join(outDir, 'admin-login.html'), generateLoginHTML('管理员登录', '/admin-login'));
 

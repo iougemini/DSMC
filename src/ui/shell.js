@@ -46,7 +46,9 @@ export function renderPage(model) {
       navItem('overview', 'grid', '概览', null, true) +
       navItem('domains', 'globe', '域名', stats.total, false) +
       navItem('expiring', 'clock', '续费', alertCount, false) +
-      '<div class="nav-label">管理</div>' +
+      // 「管理」这个分组标题只在管理员下出现。访客那四项全被隐藏后，
+      // 只剩一个孤零零的分组标题挂着，看着像导航加载失败
+      (isAdmin ? '<div class="nav-label">管理</div>' : '') +
       // 账户页只有管理员能看：访客看到的不只是"只读"，而是账户标签、Cloudflare
       // 用户名和 Token 掩码 —— 这些不该出现在一个只读视图里
       (isAdmin ? navItem('accounts', 'layers', '账户', null, false) : '') +

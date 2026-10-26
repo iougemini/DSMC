@@ -486,7 +486,9 @@ export function clientScript() {
   function refreshOne(name) {
     toast('info', '正在刷新 ' + name + '…');
     postJSON('/api/update', { action: 'refresh', domain: name, force: true }).then(function (data) {
-      toast('ok', data.message || (name + ' 已更新'));
+      // 服务端会说明这次到底写没写进库（手动维护的域名以前是静默跳过，
+      // 提示却一直是「已更新」，用户只能靠「标记已续费」绕过）
+      toast(data.problem ? 'warn' : 'ok', data.message || (name + ' 已更新'));
       reloadSoon(900);
     }).catch(function (err) { toast('warn', err.message); });
   }
@@ -598,9 +600,11 @@ export function clientScript() {
       if (data.dataSource) lines.push('dataSource: ' + data.dataSource);
       if (data.lookupError) lines.push('lookup: ' + data.lookupError);
       if (data.whoisError) lines.push('error: ' + data.whoisError);
+      // 写没写进库要写在结果里，不然关掉抽屉再打开还是旧数据，看着像没刷成功
+      if (resp && resp.savedNote) lines.push('', resp.savedNote);
       if (resp && resp.rawData) lines.push('', String(resp.rawData).slice(0, 2000));
       body.textContent = lines.join('\\n');
-      toast('ok', name + ' WHOIS 已更新');
+      toast(resp && resp.problem ? 'warn' : 'ok', (resp && resp.savedNote) || (name + ' WHOIS 已更新'));
     }).catch(function (err) {
       body.textContent = '查询失败：' + err.message;
       toast('warn', 'WHOIS 查询失败：' + err.message);

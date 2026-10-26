@@ -5,7 +5,7 @@
 <img src="./logo.svg" width="120" height="120" alt="DSMC — Domain Status Manager for Cloudflare">
 
 --- 
-![Version](https://img.shields.io/badge/version-2.8.7-blue.svg)
+![Version](https://img.shields.io/badge/version-2.8.9-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-orange.svg)
 
@@ -308,7 +308,7 @@ GET {WHOIS_PROXY}/api/lookup?query={要查询的域名}
 
 请求头：
 - `Accept: application/json`
-- `User-Agent: DSMC/2.8.7`
+- `User-Agent: DSMC/2.8.9`
 - `Cache-Control: no-cache`
 
 请求默认超时 30 秒，失败后自动重试（最多 3 次）。
@@ -468,6 +468,14 @@ wrangler secret put WHOIS_PROXY
 后续刷新页面时，只要没人工改过日期，自定义域名会和 Cloudflare 域名一样自动更新；
 抽屉里的「刷新 WHOIS」会强制查一次并回写。**「刷新」不再顺手续期**——续期请用
 「标记已续费」，两个动作以前混在一起，点一次刷新到期日就悄悄多了一年。
+
+> **「人工维护」只挡自动更新，不挡你点刷新。** 自动更新（页面后台补全、Cron）
+> 不会覆盖你手填的日期；但你在列表里点「刷新」、或在抽屉里点「刷新 WHOIS」，
+> 那是明确要求用 WHOIS 的最新数据，会照写 —— 同时**不会**把自动更新重新打开，
+> 提示里会说明「该域名设为手动维护，自动更新仍关闭」。
+>
+> 刷新后提示是黄条而不是绿条，说明这次没写进库，原因会写在提示里
+> （没拿到注册信息 / 没有到期信息 / 设为手动维护未写入）。
 
 #### DNSHE 凭证管理（设置页）
 - 多组 Key/Secret 并存，可单独启用/停用

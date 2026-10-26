@@ -157,6 +157,9 @@ h1,h2,h3,h4,p{margin:0}
 .bar-col{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%}
 .bar-val{font-size:10.5px;color:var(--text-2);font-variant-numeric:tabular-nums;line-height:1}
 .bar{width:100%;max-width:26px;border-radius:4px 4px 2px 2px;background:var(--text-3);opacity:.24;min-height:3px;transition:background var(--t)}
+/* 整行宽的到期分布（访客看不到账户卡，那块归它）柱子跟着放宽一点，
+   否则 13 根 26px 的细柱散在一千多像素里像掉了几颗钉子 */
+.span3 .bar{max-width:44px}
 .bar.hot{background:linear-gradient(180deg,var(--warn),rgba(245,185,66,.35));opacity:1}
 .bar.zero{opacity:.12}
 .bar-label{font-size:10px;color:var(--text-3);font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -480,6 +483,12 @@ html.no-scroll,body.no-scroll{overflow:hidden}
   .bar-label{font-size:9px}
   .bar-val{font-size:9.5px}
   .bar-col{gap:4px}
+}
+
+/* 手机上的 13 个周标签会互相咬住（每格只有 25px，「11/15」就要 24px）。
+   隔一个显示一个，时间轴照样读得出来；柱子一根都不少 */
+@media (max-width:520px){
+  .bar-col:nth-child(even) .bar-label{visibility:hidden}
 }
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
