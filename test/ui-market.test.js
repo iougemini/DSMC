@@ -36,6 +36,17 @@ function render(items, config = CONFIG) {
   return marketHtml({ project: PROJECT, version: '2.8.0', config, items });
 }
 
+/**
+ * 取「联系方式」整块：胶囊列表 + 压在最后的登录按钮。
+ * 登录按钮是胶囊列表的兄弟节点（分开才能保证换行时不被挤走），
+ * 所以不能按第一个 </div> 切 —— 那样正好把它切在外面。
+ */
+function contactsBlock(html) {
+  const start = html.indexOf('class="contacts"');
+  const login = html.indexOf('class="contact login"');
+  return html.slice(start, html.indexOf('</a>', login) + 4);
+}
+
 const ITEM = {
   name: 'abc.com',
   priceType: 'fixed',
@@ -141,8 +152,7 @@ test('四项的顺序固定：微信 → 邮箱 → Telegram → 交流社区，
     ...CONFIG,
     nav: [{ label: '全部域名', url: '/market' }]
   });
-  const start = html.indexOf('class="contacts"');
-  const bar = html.slice(start, html.indexOf('</div>', start));
+  const bar = contactsBlock(html);
 
   const at = s => bar.indexOf(s);
   assert.ok(at('微信') < at('mailto:'), '微信应在邮箱之前');
@@ -154,8 +164,7 @@ test('四项的顺序固定：微信 → 邮箱 → Telegram → 交流社区，
 
 test('四项各自带自己的图标，不是统一一个', () => {
   const html = render([ITEM]);
-  const start = html.indexOf('class="contacts"');
-  const bar = html.slice(start, html.indexOf('</div>', start));
+  const bar = contactsBlock(html);
 
   // 每项的图标路径各不相同 —— 用微信的双气泡和社区的双人剪影做特征
   assert.match(bar, /M9\.6 3\.5C5\.5 3\.5 2\.2 6\.3 2\.2 9\.8/, '微信图标不对');
@@ -218,7 +227,7 @@ test('t.me 链接不当作二维码，普通图片地址仍然当二维码', () 
 
 test('查看域名详情指向 /login，且在联系方式行的最后', () => {
   const html = render([ITEM]);
-  const row = html.slice(html.indexOf('class="contacts"'), html.indexOf('</div>', html.indexOf('class="contacts"')));
+  const row = contactsBlock(html);
 
   assert.match(row, /href="\/login"/);
   // 公开页只服务买家。管理员入口在登录页里，不该直接挂在公网上
@@ -258,13 +267,45 @@ test('没有精品时不出精品区，全部区标题退回「在售域名」',
   assert.match(html, /在售域名/);
 });
 
-test('页面带明暗模式切换，且与面板共用同一个存储键', () => {
+test('页面带主题切换按钮，三套主题都在 CSS 里定义', () => {
   const html = render([ITEM]);
 
   assert.match(html, /id="themebtn"/);
-  assert.match(html, /dsmc-theme/, '要和面板共用 dsmc-theme，否则两处主题会各走各的');
   assert.match(html, /data-theme="dark"/);
   assert.match(html, /data-theme="light"/, '浅色主题的变量要预先定义好');
+  assert.match(html, /\[data-theme="neo"\]\{--bg:/, 'neo 主题要有自己的一套变量');
+});
+
+test('主题按钮按 深色 → 浅色 → 米表 三态循环', () => {
+  const html = render([ITEM]);
+
+  assert.match(html, /var order=\["dark","light","neo"\]/);
+  assert.match(html, /order\[\(i\+1\)%order\.length\]/, '点到最后一套要回到第一套，不能卡在 neo');
+});
+
+test('米表用自己的主题存储键，不把 neo 写进面板共用的 dsmc-theme', () => {
+  const html = render([ITEM]);
+
+  // 面板只有深/浅两套 CSS，把 neo 写进共用键会让后台拿到一个没有变量的主题
+  assert.match(html, /localStorage\.setItem\("dsmc-market-theme"/);
+  assert.ok(!/setItem\("dsmc-theme"/.test(html), '写入必须落在米表自己的键上');
+  // 但没设置过时要回落到共用键，老用户升级上来看到的样子不变
+  assert.match(html, /getItem\("dsmc-market-theme"\)\|\|localStorage\.getItem\("dsmc-theme"\)/);
+});
+
+test('「查看域名详情」和联系方式分两组，按钮不会被胶囊挤到下一行', () => {
+  const html = render([ITEM]);
+
+  assert.match(html, /<div class="contacts"><div class="contact-list">/);
+  // 登录按钮是 contact-list 的兄弟节点，不在胶囊列表里面
+  const listEnd = html.indexOf('</div><a class="contact login"');
+  assert.ok(listEnd > 0, '登录按钮要落在胶囊容器外面，否则换行时会跟着一起被挤');
+});
+
+test('neo 主题靠逐条覆盖做出描边和硬投影，不是只换变量', () => {
+  assert.match(MARKET_CSS, /\[data-theme="neo"\] \.mcard\{border:2px solid var\(--edge\)/);
+  assert.match(MARKET_CSS, /box-shadow:4px 4px 0 var\(--edge\)/, '硬投影是这套主题的骨架，掉了就变成普通浅色');
+  assert.match(MARKET_CSS, /--hl:#F7E85B/, '荧光笔色要单独定义，价格和精品标签都靠它');
 });
 
 test('分类多于一个时出现筛选条，只有一个时不出现', () => {
@@ -337,8 +378,7 @@ test('自定义导航渲染在联系方式之后、查看详情之前，且每�
     ...CONFIG,
     nav: [{ label: '全部域名', url: '/market' }, { label: '关于本站', url: '/about' }]
   });
-  const start = html.indexOf('class="contacts"');
-  const bar = html.slice(start, html.indexOf('</div>', start));
+  const bar = contactsBlock(html);
 
   assert.match(bar, /全部域名/);
   assert.match(bar, /关于本站/);

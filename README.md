@@ -5,7 +5,7 @@
 <img src="./logo.svg" width="120" height="120" alt="DSMC — Domain Status Manager for Cloudflare">
 
 --- 
-![Version](https://img.shields.io/badge/version-2.8.9-blue.svg)
+![Version](https://img.shields.io/badge/version-2.9.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-orange.svg)
 
@@ -308,7 +308,7 @@ GET {WHOIS_PROXY}/api/lookup?query={要查询的域名}
 
 请求头：
 - `Accept: application/json`
-- `User-Agent: DSMC/2.8.9`
+- `User-Agent: DSMC/2.9.0`
 - `Cache-Control: no-cache`
 
 请求默认超时 30 秒，失败后自动重试（最多 3 次）。
@@ -531,7 +531,13 @@ wrangler secret put WHOIS_PROXY
 
 - **精品独立成区** —— 标了精品的域名在上面单独一区，完整清单在下面。手机端精品区
   自动改成横向滑动（两区内容重复，纵向铺开会把页面拉长一倍）
-- **明暗模式** —— 右上角一键切换，与面板共用同一个存储键，切一次两边都跟着变
+- **三套主题** —— 右上角一键循环：**深色 → 浅色 → 米表主题（neo）**。
+  neo 是奶油底 + 黑描边 + 硬投影 + 荧光笔高亮的"印刷品"观感，
+  标题和价格上那道黄是 `linear-gradient` 划出来的，不是背景色
+  - 米表用**自己的**存储键 `dsmc-market-theme`，没设置过时回落到面板共用的
+    `dsmc-theme`。不共用的原因：面板只有深/浅两套 CSS，把 neo 写进共用键，
+    回后台会拿到一个没有变量的主题，整页塌掉
+  - 选了主题只影响米表，后台面板仍是深/浅两套
 - **标题居右** —— LOGO（50px）在左、标题与介绍在右，中间留白。窄屏（≤560px）
   文字块独占一行时退回左对齐
 - **联系方式** —— 四项固定，顺序固定、各带图标：
@@ -549,9 +555,11 @@ wrangler secret put WHOIS_PROXY
   站名。在后台「米表 → 页面设置 → 友情链接」里配，留空则整块不渲染。
   与「自定义链接」是两个独立字段 —— 一个挂在顶栏、一个挂在页脚，互不联动
 - **背景** —— 顶部一层柔光 + 一层 7% 的 72px 网格并在中段渐隐，不是纯色。
-  面板（后台与前台）用的是同一套参数，两边切换时背景是连续的
+  面板（后台与前台）用的是同一套参数，两边切换时背景是连续的。
+  neo 主题下换成 13% 的 1px 点阵 —— 柔光那套铺在奶油色上会糊成脏色
 - **查看域名详情** —— 压在联系方式行尾，指向 `/login`（普通用户登录页）。
-  公开页只服务买家，管理员入口留在登录页里，不直接挂在公网上
+  公开页只服务买家，管理员入口留在登录页里，不直接挂在公网上。
+  它和联系方式是两个独立的 flex 项：导航链接多到换行时，按钮不会被挤到下一行
 
 概览页还有一个「精选域名」模块，把米表里勾选展示的域名列出来（域名 / 分类 / 卖点 /
 报价 / 到期），精品排前面。管理员和访客都能看到。

@@ -41,7 +41,9 @@ a{color:inherit;text-decoration:none}
 .wrap{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:34px 20px 60px}
 
 /* 头部：左边 LOGO，右边标题在上、介绍在下；联系方式另起一行 */
-.mhead{margin-bottom:22px}
+/* position:relative 是给窄屏下的主题按钮用的：手机上按钮改成 absolute，
+   定位基准就是这个头部卡片，落在卡片右上角内侧而不是压在描边上 */
+.mhead{position:relative;margin-bottom:22px}
 .mhrow{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .mbrand{display:inline-flex;align-items:center;gap:11px;flex:none}
 .mbrand .mark{width:50px;height:50px;border-radius:15px;display:grid;place-items:center;
@@ -54,14 +56,15 @@ background:linear-gradient(180deg,#5F9BFF,#2F6BE8);color:#fff;flex:none}
 .mhead h1{margin:0;font-size:26px;line-height:1.25;letter-spacing:-.4px;font-weight:650}
 .mhead .intro{margin:4px 0 0;color:var(--text-2);font-size:13.5px;line-height:1.55}
 
-.contacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.contacts{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:14px}
+.contact-list{display:flex;align-items:center;flex-wrap:wrap;gap:8px;flex:1 1 auto;min-width:0}
 .contact{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:999px;
 border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-size:12.5px;
 font-family:inherit;line-height:1}
 .contact:hover{color:var(--text);border-color:rgba(95,155,255,.45)}
 .contact b{color:var(--text);font-weight:600}
 button.contact{cursor:pointer}
-.contact.login{margin-left:auto;color:var(--text-3)}
+.contact.login{flex:none;margin-left:auto;color:var(--text-3)}
 
 /* 明暗切换 */
 .themebtn{position:fixed;top:16px;right:16px;z-index:40;width:34px;height:34px;display:grid;place-items:center;
@@ -71,6 +74,9 @@ transition:color .16s,border-color .16s}
 .themebtn .sun{display:none}
 [data-theme="light"] .themebtn .sun{display:block}
 [data-theme="light"] .themebtn .moon{display:none}
+.themebtn .spark{display:none}
+[data-theme="neo"] .themebtn .spark{display:block}
+[data-theme="neo"] .themebtn .moon{display:none}
 
 /* 分区 */
 .mblock{margin-bottom:30px}
@@ -126,6 +132,83 @@ box-shadow:var(--shadow);text-align:center;max-width:min(300px,86vw)}
 .qrcard .qrid{margin:9px 0 0;font-size:13px;color:var(--text-2)}
 .qrcard .qrid b{color:var(--text)}
 
+/* ────────────────────────────────────────────────────────────
+   第三套主题：neo（奶油底 + 黑描边 + 硬投影 + 荧光笔）
+   灵感是 ip.fs.kg 那种"印刷品"观感：没有柔和阴影、没有半透明，
+   所有边界都是 1.5–2px 实线，投影是硬偏移的纯色块。
+   变量先落一遍，细节再逐条覆盖 —— 只改变量做不出硬投影和描边。
+   ──────────────────────────────────────────────────────────── */
+[data-theme="neo"]{--bg:#F4EFE3;--surface:#FFFCF3;--surface-2:#F7F1E3;--border:#141210;
+--text:#141210;--text-2:#4C463C;--text-3:#8B8375;--accent:#6B4EE6;--accent-2:#141210;
+--ok:#1F9D55;--warn:#C2410C;--radius:14px;--shadow:4px 4px 0 #141210;
+--grid:transparent;--glow:transparent;--hl:#F7E85B;--edge:#141210}
+/* 背景换成点阵：原先是"柔光 + 网格 + 中段渐隐"，那套在浅色奶油底上
+   会糊成一片脏色。点阵用 1px 圆点 + 13% 不透明度，远看是纸的纹理 */
+[data-theme="neo"] body::before{background:radial-gradient(var(--edge) 1px,transparent 1.4px) 0 0/16px 16px;
+opacity:.13;-webkit-mask-image:none;mask-image:none}
+
+[data-theme="neo"] .mhead{background:var(--surface);border:2px solid var(--edge);border-radius:16px;
+box-shadow:5px 5px 0 var(--edge);padding:18px 22px 16px;margin-bottom:20px}
+[data-theme="neo"] .mbrand .mark{background:var(--accent);color:#fff;border:2px solid var(--edge);
+border-radius:12px;box-shadow:3px 3px 0 var(--edge)}
+[data-theme="neo"] .mbrand b{font-size:23px;font-weight:800;letter-spacing:-.6px}
+/* 标题做成荧光笔划过的样子：display:inline + box-decoration-break 才能让
+   长标题换行时每一行都带上高亮，用 background 铺在块级元素上只会盖住整块 */
+[data-theme="neo"] .mhead h1{display:inline;font-size:27px;font-weight:800;letter-spacing:-.7px;
+background:linear-gradient(transparent 16%,var(--hl) 16%,var(--hl) 92%,transparent 92%);
+box-decoration-break:clone;-webkit-box-decoration-break:clone;padding:0 3px}
+[data-theme="neo"] .mhead .intro{margin-top:7px;font-size:13px;color:var(--text-2)}
+
+/* 卡片内边距比原版宽，一排胶囊加登录按钮差 50px 放不下，会多占一行。
+   字号收 0.5px、内边距收 2px 正好补回来；用户配更多链接时仍然会换行，
+   那时登录按钮独占一行靠右，也是能看的 */
+[data-theme="neo"] .contact{border:1.5px solid var(--edge);background:var(--surface);color:var(--text-2);
+box-shadow:2px 2px 0 var(--edge);font-weight:500;font-size:12px;padding:0 9px}
+[data-theme="neo"] .contact:hover{background:var(--hl);color:var(--text);border-color:var(--edge);
+transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--edge)}
+[data-theme="neo"] .contact b{color:var(--text);font-weight:700}
+/* 「查看域名详情」做成实心黑胶囊：参考站里最重的按钮就是那个黑底「查询」 */
+[data-theme="neo"] .contact.login{background:var(--edge);color:var(--surface);border-color:var(--edge)}
+[data-theme="neo"] .contact.login:hover{background:var(--accent);color:#fff}
+
+[data-theme="neo"] .themebtn{border:2px solid var(--edge);background:var(--surface);color:var(--edge);
+border-radius:10px;box-shadow:3px 3px 0 var(--edge)}
+[data-theme="neo"] .themebtn:hover{background:var(--hl);border-color:var(--edge)}
+
+[data-theme="neo"] .mblock-head h2{font-weight:800;letter-spacing:0}
+[data-theme="neo"] .mblock-head h2::before{content:'';display:inline-block;width:10px;height:10px;
+margin-right:8px;border:1.5px solid var(--edge);border-radius:3px;background:var(--hl)}
+[data-theme="neo"] .mblock-head .mcount{font-weight:600;color:var(--text-3)}
+
+[data-theme="neo"] .mfilter{border:1.5px solid var(--edge);background:var(--surface);color:var(--text-2);
+box-shadow:2px 2px 0 var(--edge);font-weight:600}
+[data-theme="neo"] .mfilter:hover{background:var(--hl);color:var(--text)}
+[data-theme="neo"] .mfilter.on{background:var(--edge);color:var(--surface);box-shadow:2px 2px 0 var(--accent)}
+
+[data-theme="neo"] .mcard{border:2px solid var(--edge);border-radius:14px;background:var(--surface);
+box-shadow:4px 4px 0 var(--edge);transform:none}
+[data-theme="neo"] .mcard:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--edge);border-color:var(--edge)}
+[data-theme="neo"] .badge{background:var(--hl);color:var(--edge);border:1.5px solid var(--edge);
+border-radius:6px;font-weight:700}
+[data-theme="neo"] .cat{border:1.5px solid var(--edge);background:transparent;color:var(--text-2);font-weight:600}
+[data-theme="neo"] .mname{font-size:21px;font-weight:800;letter-spacing:-.6px}
+[data-theme="neo"] .mname span{color:var(--text-3);font-weight:600}
+[data-theme="neo"] .mdesc{color:var(--text-2);font-size:12.5px}
+[data-theme="neo"] .mmeta dt{font-size:10px;letter-spacing:.09em;text-transform:uppercase}
+[data-theme="neo"] .mmeta dd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:600;color:var(--text-2)}
+[data-theme="neo"] .mfoot{border-top:1.5px solid rgba(20,18,16,.18)}
+/* 价格用荧光笔划一道，而不是加边框：每张卡都套个黄框太吵，
+   划一道既醒目又只占一行文字的高度 */
+[data-theme="neo"] .price{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+font-weight:800;letter-spacing:-.3px;padding:0 2px;
+background:linear-gradient(transparent 56%,var(--hl) 56%,var(--hl) 94%,transparent 94%)}
+[data-theme="neo"] .price.inquire{background:none;font-weight:600;color:var(--text-2)}
+
+[data-theme="neo"] .mempty{border:2px dashed var(--edge);background:var(--surface)}
+[data-theme="neo"] .mempty .ico{border:1.5px solid var(--edge);background:var(--hl);color:var(--edge);border-radius:10px}
+[data-theme="neo"] .qrbox{background:rgba(20,18,16,.5)}
+[data-theme="neo"] .qrcard{border:2px solid var(--edge);border-radius:16px;box-shadow:6px 6px 0 var(--edge)}
+
 @media (max-width:560px){
   .wrap{padding:22px 14px 44px}
   .mhrow{gap:10px}
@@ -140,7 +223,14 @@ box-shadow:var(--shadow);text-align:center;max-width:min(300px,86vw)}
   .mgrid[data-block="featured"] .mcard:hover{transform:none}
   .mcard{padding:14px}
   .mname{font-size:18px}
-  .themebtn{top:12px;right:12px}
+  /* 手机上胶囊独占一行，登录按钮自然落到下一行右侧 —— 和改版前观感一致 */
+  .contact-list{flex:1 1 100%}
+  /* 窄屏不再 fixed 贴视口：头部卡片是满宽的，按钮压在卡片右上角的描边上，
+     neo 主题下那条 2px 黑边被切断，看着像缺了个角。
+     改成卡片内 absolute，位置一样但不再破坏轮廓 */
+  .themebtn{position:absolute;top:10px;right:10px}
+  .mhtext{padding-right:0}
+  .mbrand{padding-right:42px}
 }
 `;
 
@@ -264,10 +354,16 @@ function contactChips(contact, nav) {
 
   // 只服务买家：这里去普通用户登录页（管理员入口在登录页里），
   // 不把管理员登录直接摆在公网上
-  chips.push('<a class="contact login" href="/login" title="登录后查看域名详情">' +
-    icon('search', 13) + '查看域名详情</a>');
+  const login = '<a class="contact login" href="/login" title="登录后查看域名详情">' +
+    icon('search', 13) + '查看域名详情</a>';
 
-  return '<div class="contacts">' + chips.join('') + '</div>';
+  // 联系方式和「查看域名详情」分成两组：胶囊自己换行，登录按钮不跟着换。
+  // 混在一组里时，导航链接多一条就会把按钮挤到下一行，左边留一大片空白 ——
+  // 这跟用户配了几条链接有关，靠调字距是调不稳的
+  return '<div class="contacts">' +
+      '<div class="contact-list">' + chips.join('') + '</div>' +
+      login +
+    '</div>';
 }
 
 function cardHtml(item) {
@@ -292,11 +388,37 @@ function cardHtml(item) {
     '</article>';
 }
 
+/** 三套主题的顺序。按钮点一下往后走一格，到末尾回到深色 */
+const THEMES = ['dark', 'light', 'neo'];
+
 function themeButton() {
-  return '<button type="button" class="themebtn" id="themebtn" aria-label="切换明暗模式">' +
+  return '<button type="button" class="themebtn" id="themebtn" aria-label="切换主题（深色 / 浅色 / 米表主题）">' +
     '<span class="moon">' + icon('moon', 15) + '</span>' +
     '<span class="sun">' + icon('sun', 15) + '</span>' +
+    '<span class="spark">' + icon('spark', 15) + '</span>' +
   '</button>';
+}
+
+/**
+ * 首屏定主题，必须在 <head> 里跑，否则会先看到一帧深色再跳到奶油色。
+ *
+ * 米表用**自己的**存储键 `dsmc-market-theme`：面板只有深/浅两套 CSS，
+ * 把 neo 写进共用的 `dsmc-theme` 会让后台拿到一个没有变量的主题，整页塌掉。
+ * 没设置过时回落到 `dsmc-theme`，老用户升级上来看到的样子不变。
+ */
+function themeBootScript() {
+  return '<script>try{var t=localStorage.getItem("dsmc-market-theme")||localStorage.getItem("dsmc-theme");' +
+    'if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>';
+}
+
+function themeToggleScript() {
+  return 'var root=document.documentElement,btn=document.getElementById("themebtn");' +
+    'var order=' + JSON.stringify(THEMES) + ';' +
+    'if(btn)btn.addEventListener("click",function(){' +
+      'var i=order.indexOf(root.dataset.theme);' +
+      'var t=order[(i+1)%order.length];' +
+      'root.dataset.theme=t;' +
+      'try{localStorage.setItem("dsmc-market-theme",t);}catch(e){}});';
 }
 
 function qrOverlay() {
@@ -317,7 +439,7 @@ function pageShell({ project, version, title, body, extraCss }) {
     '<title>' + esc(title) + '</title>\n' +
     FAVICON_LINK + THEME_COLOR_META +
     // 主题在 <head> 里就定下来，避免亮色用户先看到一帧深色
-    '<script>try{var t=localStorage.getItem("dsmc-theme")||localStorage.getItem("dk-theme");if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>\n' +
+    themeBootScript() + '\n' +
     '<style>' + MARKET_CSS + FOOTER_CSS + (extraCss || '') + '</style>\n' +
     '</head>\n<body>\n' + body + '\n</body>\n</html>';
 }
@@ -358,9 +480,10 @@ export function marketHtml({ project, version, config, items }) {
     '</section>';
 
   const body = '<div class="wrap">' +
-      themeButton() +
-
       '<header class="mhead">' +
+        // 按钮放在 header 内部：桌面端是 fixed 贴视口右上，窄屏下改成 absolute
+        // 落在卡片右上角内侧 —— 放在 header 外面就只能相对 .wrap 定位，还是会压到描边
+        themeButton() +
         '<div class="mhrow">' +
           '<span class="mbrand"><span class="mark">' + icon('shield', 26) + '</span>' +
             '<b>' + esc(project.NAME || 'DSMC') + '</b></span>' +
@@ -381,11 +504,8 @@ export function marketHtml({ project, version, config, items }) {
     qrOverlay() +
 
     '<script>(function(){' +
-      // 明暗切换：与面板共用 dsmc-theme，切一次两边都跟着变
-      'var root=document.documentElement,btn=document.getElementById("themebtn");' +
-      'if(btn)btn.addEventListener("click",function(){' +
-        'var t=root.dataset.theme==="light"?"dark":"light";root.dataset.theme=t;' +
-        'try{localStorage.setItem("dsmc-theme",t);}catch(e){}});' +
+      // 主题：深色 → 浅色 → 米表主题 → 深色
+      themeToggleScript() +
 
       // 分类筛选：只是显隐，不改 DOM。精品区筛空时整块隐藏，避免留一个空标题
       'var bar=document.querySelector(".mfilters");' +
@@ -426,8 +546,8 @@ export function marketHtml({ project, version, config, items }) {
 /** 未启用 / 没有条目时的落地页 —— 不能让公开地址打开是白屏 */
 export function marketEmptyHtml({ project, version, reason, friends }) {
   const body = '<div class="wrap">' +
-      themeButton() +
       '<header class="mhead">' +
+        themeButton() +
         '<div class="mhrow">' +
           '<span class="mbrand"><span class="mark">' + icon('shield', 26) + '</span>' +
             '<b>' + esc(project.NAME || 'DSMC') + '</b></span>' +
@@ -442,10 +562,7 @@ export function marketEmptyHtml({ project, version, reason, friends }) {
       footerHtml({ version, project, friends }) +
     '</div>' +
 
-    '<script>(function(){var root=document.documentElement,btn=document.getElementById("themebtn");' +
-      'if(!btn)return;btn.addEventListener("click",function(){' +
-        'var t=root.dataset.theme==="light"?"dark":"light";root.dataset.theme=t;' +
-        'try{localStorage.setItem("dsmc-theme",t);}catch(e){}});})();</script>';
+    '<script>(function(){' + themeToggleScript() + '})();</script>';
 
   return pageShell({
     project,
