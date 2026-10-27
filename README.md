@@ -5,7 +5,7 @@
 <img src="./logo.svg" width="120" height="120" alt="DSMC — Domain Status Manager for Cloudflare">
 
 --- 
-![Version](https://img.shields.io/badge/version-2.9.1-blue.svg)
+![Version](https://img.shields.io/badge/version-2.9.2-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-orange.svg)
 
@@ -308,7 +308,7 @@ GET {WHOIS_PROXY}/api/lookup?query={要查询的域名}
 
 请求头：
 - `Accept: application/json`
-- `User-Agent: DSMC/2.9.1`
+- `User-Agent: DSMC/2.9.2`
 - `Cache-Control: no-cache`
 
 请求默认超时 30 秒，失败后自动重试（最多 3 次）。

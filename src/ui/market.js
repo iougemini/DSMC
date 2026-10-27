@@ -176,6 +176,9 @@ box-shadow:2px 2px 0 var(--edge);font-weight:500;font-size:12px;padding:0 9px}
 [data-theme="neo"] .contact[data-kind="mail"]{background:#D9EBFF}
 [data-theme="neo"] .contact[data-kind="telegram"]{background:#D3F0FA}
 [data-theme="neo"] .contact[data-kind="community"]{background:#E8DDFF}
+/* 自定义链接统一一层沙黄底，不跟着编号换色：四条固定联系方式已经各占一色，
+   再让每条链接一个颜色，一排十颗胶囊会吵成一团。同色反而说明"这几个是同一类" */
+[data-theme="neo"] .contact[data-kind="nav"]{background:#FFECAE}
 [data-theme="neo"] .contact:hover{background:var(--hl);color:var(--text);border-color:var(--edge);
 transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--edge)}
 [data-theme="neo"] .contact b{color:var(--text);font-weight:700}

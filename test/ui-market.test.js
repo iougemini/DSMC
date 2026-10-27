@@ -356,6 +356,15 @@ test('分类标签带 data-tone，四个固定联系方式带 data-kind', () => 
   assert.ok(!noCat.includes('class="cat"'), '没有分类不该渲染分类标签');
 });
 
+test('四类联系方式和自定义链接各有自己的底色，且不按序号轮换', () => {
+  for (const kind of ['wechat', 'mail', 'telegram', 'community', 'nav']) {
+    assert.match(MARKET_CSS, new RegExp('\\[data-kind="' + kind + '"\\]\\{background:#'), kind + ' 缺底色');
+  }
+  // 链接同色才说明"这几个是同一类"；按序号轮换会让一排十颗胶囊吵成一团
+  assert.ok(!/data-kind="nav"\]\{background:var\(--(lime|sky|pink|sand|lilac)\)/.test(MARKET_CSS),
+    '自定义链接不该跟着色板轮换');
+});
+
 test('精品区整块标了 mblock-featured，neo 才能给它铺色', () => {
   const html = render([ITEM, { ...ITEM, name: 'plain.com', featured: false }]);
 
