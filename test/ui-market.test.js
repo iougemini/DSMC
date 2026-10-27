@@ -7,7 +7,8 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { marketHtml, marketEmptyHtml, splitDomain, isQrUrl, MARKET_CSS } from '../src/ui/market.js';
+import { marketHtml, marketEmptyHtml, splitDomain, isQrUrl, MARKET_CSS, toneOf } from '../src/ui/market.js';
+import { icon } from '../src/ui/icons.js';
 
 const PROJECT = {
   NAME: 'DSMC',
@@ -166,10 +167,21 @@ test('四项各自带自己的图标，不是统一一个', () => {
   const html = render([ITEM]);
   const bar = contactsBlock(html);
 
-  // 每项的图标路径各不相同 —— 用微信的双气泡和社区的双人剪影做特征
-  assert.match(bar, /M9\.6 3\.5C5\.5 3\.5 2\.2 6\.3 2\.2 9\.8/, '微信图标不对');
-  assert.match(bar, /M22 14\.7c0-3-2\.8-5\.5-6\.3-5\.5/, '微信图标少了第二个气泡');
+  // 每项的图标路径各不相同 —— 用微信的圆气泡 + 双眼和社区的双人剪影做特征
+  assert.match(bar, /M20\.2 11\.2c0-4\.1-3\.7-7\.4-8\.2-7\.4/, '微信图标不对');
+  assert.match(bar, /<circle cx="9\.4" cy="10\.6" r="1\.15" fill="currentColor"/, '微信图标缺眼睛');
   assert.match(bar, /<circle cx="9" cy="8" r="3\.2"\/>/, '社区图标不对');
+});
+
+test('微信图标是一条闭合路径，不能留下没接上的缺口', () => {
+  // 旧版画了两个气泡，左边那个停在 (10.3,14.2) 没闭合，
+  // 14px 下就是一个被切掉一半的缺口，放大截图一眼能看出来
+  const svg = icon('wechat', 14);
+  const path = svg.match(/<path d="([^"]+)"/)[1];
+
+  assert.ok(path.endsWith('z'), '气泡路径必须以 z 闭合');
+  assert.equal((path.match(/M/g) || []).length, 1, '一个气泡只该有一个起笔');
+  assert.equal((svg.match(/<circle/g) || []).length, 2, '两只眼睛');
 });
 
 test('Telegram 填的是图片地址时渲染成二维码按钮，不是一串 URL', () => {
@@ -306,6 +318,49 @@ test('neo 主题靠逐条覆盖做出描边和硬投影，不是只换变量', (
   assert.match(MARKET_CSS, /\[data-theme="neo"\] \.mcard\{border:2px solid var\(--edge\)/);
   assert.match(MARKET_CSS, /box-shadow:4px 4px 0 var\(--edge\)/, '硬投影是这套主题的骨架，掉了就变成普通浅色');
   assert.match(MARKET_CSS, /--hl:#F7E85B/, '荧光笔色要单独定义，价格和精品标签都靠它');
+});
+
+test('neo 的色板落在变量里，色块本身仍是奶油底', () => {
+  // 卡片底色不能跟着分类变，否则一屏十几张就是调色盘
+  assert.match(MARKET_CSS, /\[data-theme="neo"\]\{[^}]*--lime:#C8F169/);
+  assert.match(MARKET_CSS, /--panel:#EDE6FF/);
+  assert.ok(!/\[data-theme="neo"\] \.mcard\[data-tone/.test(MARKET_CSS), '卡片本身不按分类上色');
+});
+
+test('分类色号按分类名算，同分类全页同色且可复现', () => {
+  assert.equal(toneOf('品牌'), toneOf('品牌'), '同一个分类必须算出同一个色号');
+  for (const name of ['品牌', '生活', '工具', '数字', '', 'a'.repeat(40), '🎯']) {
+    const t = toneOf(name);
+    assert.ok(Number.isInteger(t) && t >= 0 && t < 5, '色号要落在 0..4');
+  }
+  // 至少有几个常见分类落在不同色号上，否则"多彩"是假的
+  const used = new Set(['品牌', '生活', '工具', '数字'].map(toneOf));
+  assert.ok(used.size >= 3, '四个常见分类应分散到至少三种颜色');
+});
+
+test('分类标签带 data-tone，四个固定联系方式带 data-kind', () => {
+  const html = render([ITEM, { ...ITEM, name: 'xyz.net', category: '工具', featured: false }], {
+    ...CONFIG,
+    nav: [{ label: 'Blog', url: 'https://example.com/blog' }]
+  });
+
+  assert.match(html, /<span class="cat" data-tone="\d">品牌<\/span>/);
+  assert.match(html, /data-kind="wechat"/);
+  assert.match(html, /data-kind="mail"/);
+  assert.match(html, /data-kind="telegram"/);
+  assert.match(html, /data-kind="community"/);
+  assert.match(html, /data-kind="nav"/);
+
+  // 没有分类的域名不该硬塞一个空标签
+  const noCat = render([{ ...ITEM, category: '' }]);
+  assert.ok(!noCat.includes('class="cat"'), '没有分类不该渲染分类标签');
+});
+
+test('精品区整块标了 mblock-featured，neo 才能给它铺色', () => {
+  const html = render([ITEM, { ...ITEM, name: 'plain.com', featured: false }]);
+
+  assert.match(html, /<section class="mblock mblock-featured">/);
+  assert.match(MARKET_CSS, /\[data-theme="neo"\] \.mblock-featured\{background:var\(--panel\)/);
 });
 
 test('分类多于一个时出现筛选条，只有一个时不出现', () => {

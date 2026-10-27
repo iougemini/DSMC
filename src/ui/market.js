@@ -133,15 +133,21 @@ box-shadow:var(--shadow);text-align:center;max-width:min(300px,86vw)}
 .qrcard .qrid b{color:var(--text)}
 
 /* ────────────────────────────────────────────────────────────
-   第三套主题：neo（奶油底 + 黑描边 + 硬投影 + 荧光笔）
+   第三套主题：neo（奶油底 + 黑描边 + 硬投影 + 荧光笔 + 多彩点缀）
    灵感是 ip.fs.kg 那种"印刷品"观感：没有柔和阴影、没有半透明，
    所有边界都是 1.5–2px 实线，投影是硬偏移的纯色块。
    变量先落一遍，细节再逐条覆盖 —— 只改变量做不出硬投影和描边。
+
+   颜色策略：黑描边是骨架，颜色只做"贴纸"——面积小、饱和度中等偏上，
+   靠数量出活泼感。所以徽标、分类、胶囊、按钮各占一种色，卡片本身仍是奶油色；
+   如果反过来给卡片上色，一屏十几张就会变成调色盘。
    ──────────────────────────────────────────────────────────── */
 [data-theme="neo"]{--bg:#F4EFE3;--surface:#FFFCF3;--surface-2:#F7F1E3;--border:#141210;
 --text:#141210;--text-2:#4C463C;--text-3:#8B8375;--accent:#6B4EE6;--accent-2:#141210;
 --ok:#1F9D55;--warn:#C2410C;--radius:14px;--shadow:4px 4px 0 #141210;
---grid:transparent;--glow:transparent;--hl:#F7E85B;--edge:#141210}
+--grid:transparent;--glow:transparent;--hl:#F7E85B;--edge:#141210;
+--lime:#C8F169;--sky:#8FD8F2;--pink:#FFA9C9;--sand:#FFD166;--lilac:#C3B4FF;--mint:#7FE3B0;
+--panel:#EDE6FF}
 /* 背景换成点阵：原先是"柔光 + 网格 + 中段渐隐"，那套在浅色奶油底上
    会糊成一片脏色。点阵用 1px 圆点 + 13% 不透明度，远看是纸的纹理 */
 [data-theme="neo"] body::before{background:radial-gradient(var(--edge) 1px,transparent 1.4px) 0 0/16px 16px;
@@ -164,12 +170,19 @@ box-decoration-break:clone;-webkit-box-decoration-break:clone;padding:0 3px}
    那时登录按钮独占一行靠右，也是能看的 */
 [data-theme="neo"] .contact{border:1.5px solid var(--edge);background:var(--surface);color:var(--text-2);
 box-shadow:2px 2px 0 var(--edge);font-weight:500;font-size:12px;padding:0 9px}
+/* 四个固定联系方式各给一层浅色底：一眼能分出"这是微信、那是邮箱"，
+   比四个一模一样的白胶囊好扫。底色都压得很浅，黑描边仍然压得住 */
+[data-theme="neo"] .contact[data-kind="wechat"]{background:#DDF7C6}
+[data-theme="neo"] .contact[data-kind="mail"]{background:#D9EBFF}
+[data-theme="neo"] .contact[data-kind="telegram"]{background:#D3F0FA}
+[data-theme="neo"] .contact[data-kind="community"]{background:#E8DDFF}
 [data-theme="neo"] .contact:hover{background:var(--hl);color:var(--text);border-color:var(--edge);
 transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--edge)}
 [data-theme="neo"] .contact b{color:var(--text);font-weight:700}
-/* 「查看域名详情」做成实心黑胶囊：参考站里最重的按钮就是那个黑底「查询」 */
-[data-theme="neo"] .contact.login{background:var(--edge);color:var(--surface);border-color:var(--edge)}
-[data-theme="neo"] .contact.login:hover{background:var(--accent);color:#fff}
+/* 「查看域名详情」做成实心紫胶囊：参考站里最重的那个按钮是紫底白字的，
+   黑色留给文字和描边，主按钮再黑下去整页就没有"行动点"了 */
+[data-theme="neo"] .contact.login{background:var(--accent);color:#fff;border-color:var(--edge)}
+[data-theme="neo"] .contact.login:hover{background:#5A3ED6;color:#fff;box-shadow:3px 3px 0 var(--edge)}
 
 [data-theme="neo"] .themebtn{border:2px solid var(--edge);background:var(--surface);color:var(--edge);
 border-radius:10px;box-shadow:3px 3px 0 var(--edge)}
@@ -177,20 +190,35 @@ border-radius:10px;box-shadow:3px 3px 0 var(--edge)}
 
 [data-theme="neo"] .mblock-head h2{font-weight:800;letter-spacing:0}
 [data-theme="neo"] .mblock-head h2::before{content:'';display:inline-block;width:10px;height:10px;
-margin-right:8px;border:1.5px solid var(--edge);border-radius:3px;background:var(--hl)}
+margin-right:8px;border:1.5px solid var(--edge);border-radius:3px;background:var(--lime)}
 [data-theme="neo"] .mblock-head .mcount{font-weight:600;color:var(--text-3)}
+/* 精品区整块铺淡紫，是整页面积最大的一处颜色 —— 参考站的右栏就是一块紫。
+   卡片在里面仍然是奶油色，对比之下"挑出来的"这件事一眼就能看到 */
+[data-theme="neo"] .mblock-featured{background:var(--panel);border:2px solid var(--edge);
+border-radius:18px;box-shadow:5px 5px 0 var(--edge);padding:16px 16px 12px;margin-bottom:26px}
+[data-theme="neo"] .mblock-featured .mblock-head h2::before{background:var(--accent)}
+[data-theme="neo"] .mblock-featured .mgrid{gap:14px}
 
 [data-theme="neo"] .mfilter{border:1.5px solid var(--edge);background:var(--surface);color:var(--text-2);
 box-shadow:2px 2px 0 var(--edge);font-weight:600}
 [data-theme="neo"] .mfilter:hover{background:var(--hl);color:var(--text)}
-[data-theme="neo"] .mfilter.on{background:var(--edge);color:var(--surface);box-shadow:2px 2px 0 var(--accent)}
+/* 选中的筛选用柠檬绿而不是黑：黑色已经是描边和正文的颜色，
+   再拿它当选中态，一排按钮里看不出哪个是当前的 */
+[data-theme="neo"] .mfilter.on{background:var(--lime);color:var(--edge);box-shadow:2px 2px 0 var(--edge)}
 
 [data-theme="neo"] .mcard{border:2px solid var(--edge);border-radius:14px;background:var(--surface);
 box-shadow:4px 4px 0 var(--edge);transform:none}
 [data-theme="neo"] .mcard:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--edge);border-color:var(--edge)}
-[data-theme="neo"] .badge{background:var(--hl);color:var(--edge);border:1.5px solid var(--edge);
+[data-theme="neo"] .badge{background:var(--lime);color:var(--edge);border:1.5px solid var(--edge);
 border-radius:6px;font-weight:700}
-[data-theme="neo"] .cat{border:1.5px solid var(--edge);background:transparent;color:var(--text-2);font-weight:600}
+/* 分类标签按分类名散列到 5 种色（见 toneOf）：同一个分类全页同色，
+   不同分类彼此区分。黑色描边保证再浅的底也不会糊进卡片背景 */
+[data-theme="neo"] .cat{border:1.5px solid var(--edge);background:transparent;color:var(--edge);font-weight:600}
+[data-theme="neo"] .cat[data-tone="0"]{background:var(--lime)}
+[data-theme="neo"] .cat[data-tone="1"]{background:var(--sky)}
+[data-theme="neo"] .cat[data-tone="2"]{background:var(--pink)}
+[data-theme="neo"] .cat[data-tone="3"]{background:var(--sand)}
+[data-theme="neo"] .cat[data-tone="4"]{background:var(--lilac)}
 [data-theme="neo"] .mname{font-size:21px;font-weight:800;letter-spacing:-.6px}
 [data-theme="neo"] .mname span{color:var(--text-3);font-weight:600}
 [data-theme="neo"] .mdesc{color:var(--text-2);font-size:12.5px}
@@ -202,7 +230,7 @@ border-radius:6px;font-weight:700}
 [data-theme="neo"] .price{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 font-weight:800;letter-spacing:-.3px;padding:0 2px;
 background:linear-gradient(transparent 56%,var(--hl) 56%,var(--hl) 94%,transparent 94%)}
-[data-theme="neo"] .price.inquire{background:none;font-weight:600;color:var(--text-2)}
+[data-theme="neo"] .price.inquire{background:none;font-weight:600;color:var(--accent)}
 
 [data-theme="neo"] .mempty{border:2px dashed var(--edge);background:var(--surface)}
 [data-theme="neo"] .mempty .ico{border:1.5px solid var(--edge);background:var(--hl);color:var(--edge);border-radius:10px}
@@ -221,6 +249,9 @@ background:linear-gradient(transparent 56%,var(--hl) 56%,var(--hl) 94%,transpare
     margin:0 -14px;padding:2px 14px 6px;-webkit-overflow-scrolling:touch}
   .mgrid[data-block="featured"] .mcard{flex:0 0 76%;scroll-snap-align:start}
   .mgrid[data-block="featured"] .mcard:hover{transform:none}
+  /* 精品区是块带内边距的卡片，横向滑动不能再往视口外出血，否则会溢出面板描边 */
+  [data-theme="neo"] .mblock-featured{padding:14px 12px 2px;margin-bottom:22px}
+  [data-theme="neo"] .mblock-featured .mgrid[data-block="featured"]{margin:0;padding:2px 0 8px}
   .mcard{padding:14px}
   .mname{font-size:18px}
   /* 手机上胶囊独占一行，登录按钮自然落到下一行右侧 —— 和改版前观感一致 */
@@ -309,45 +340,45 @@ function contactChips(contact, nav) {
     const wx = String(c.wechat).trim();
     if (isQrUrl(wx)) {
       // 二维码图片：点击弹层展示，不直接外链跳走（买家多半在手机上，跳走就回不来了）
-      chips.push('<button type="button" class="contact" data-qr="' + esc(wx) + '" ' +
+      chips.push('<button type="button" class="contact" data-kind="wechat" data-qr="' + esc(wx) + '" ' +
         'aria-label="查看微信二维码">' + icon('wechat', 14) + '微信 <b>扫码</b></button>');
     } else {
-      chips.push('<span class="contact">' + icon('wechat', 14) + '微信 <b>' + esc(wx) + '</b></span>');
+      chips.push('<span class="contact" data-kind="wechat">' + icon('wechat', 14) + '微信 <b>' + esc(wx) + '</b></span>');
     }
   }
 
   if (c.email) {
-    chips.push('<a class="contact" href="mailto:' + esc(c.email) + '">' + icon('mail', 14) +
+    chips.push('<a class="contact" data-kind="mail" href="mailto:' + esc(c.email) + '">' + icon('mail', 14) +
       '<b>' + esc(c.email) + '</b></a>');
   }
 
   if (c.telegram) {
     const tg = String(c.telegram).trim();
     if (isQrUrl(tg)) {
-      chips.push('<button type="button" class="contact" data-qr="' + esc(tg) + '" ' +
+      chips.push('<button type="button" class="contact" data-kind="telegram" data-qr="' + esc(tg) + '" ' +
         'aria-label="查看 Telegram 二维码">' + icon('telegram', 14) + 'Telegram <b>扫码</b></button>');
     } else {
       const handle = telegramHandle(tg);
       // 显示的是**规范化之后**的用户名，不是用户输入的原文。
       // 原文可能是 @//xxx/ 或 https://t.me/xxx，照原样显示在公开页上很难看
       chips.push(handle
-        ? '<a class="contact" href="https://t.me/' + handle + '" target="_blank" rel="noopener noreferrer">' +
+        ? '<a class="contact" data-kind="telegram" href="https://t.me/' + handle + '" target="_blank" rel="noopener noreferrer">' +
           icon('telegram', 14) + '<b>@' + esc(handle) + '</b></a>'
-        : '<span class="contact">' + icon('telegram', 14) + 'Telegram <b>' + esc(tg) + '</b></span>');
+        : '<span class="contact" data-kind="telegram">' + icon('telegram', 14) + 'Telegram <b>' + esc(tg) + '</b></span>');
     }
   }
 
   // 交流社区。归一化里已经过滤过一次，这里再判一次 —— 渲染层也可能被直接调用
   // （测试、预览脚本），纵深防御比"相信上游"便宜
   if (c.community && /^https?:\/\//i.test(String(c.community))) {
-    chips.push('<a class="contact" href="' + esc(c.community) + '" target="_blank" rel="noopener noreferrer">' +
+    chips.push('<a class="contact" data-kind="community" href="' + esc(c.community) + '" target="_blank" rel="noopener noreferrer">' +
       icon('community', 14) + '交流社区</a>');
   }
 
   // 友情链接：每个都带图标，否则一列纯文字胶囊看着像面包屑，分不出是可点的外链
   for (const item of Array.isArray(nav) ? nav : []) {
     const ext = isExternalLink(item.url);
-    chips.push('<a class="contact nav"' + ' href="' + esc(item.url) + '"' +
+    chips.push('<a class="contact nav" data-kind="nav" href="' + esc(item.url) + '"' +
       (ext ? ' target="_blank" rel="noopener noreferrer"' : '') + '>' +
       icon(navIcon(item.url, item.label), 14) + esc(item.label) + '</a>');
   }
@@ -366,6 +397,19 @@ function contactChips(contact, nav) {
     '</div>';
 }
 
+/**
+ * 分类名 → 0..4 的色号。
+ *
+ * 同一个分类在整页永远是同一个颜色（"品牌"不会一会儿绿一会儿粉），
+ * 换个分类换一种色，卡片区就有了颜色差。用字符编码求和而不是随机：
+ * 渲染两次必须得到同一个结果，否则每次刷新页面颜色都在跳。
+ */
+export function toneOf(text) {
+  let h = 0;
+  for (const ch of String(text || '')) h = (h * 31 + ch.codePointAt(0)) % 9973;
+  return h % 5;
+}
+
 function cardHtml(item) {
   const { keyword, suffix } = splitDomain(item.name);
   const fixed = item.priceType === 'fixed' && Number(item.price) > 0;
@@ -373,7 +417,9 @@ function cardHtml(item) {
   return '<article class="mcard" data-category="' + esc(item.category || '') + '">' +
       '<div class="mtop">' +
         (item.featured ? '<span class="badge">精品</span>' : '') +
-        (item.category ? '<span class="cat">' + esc(item.category) + '</span>' : '') +
+        (item.category
+          ? '<span class="cat" data-tone="' + toneOf(item.category) + '">' + esc(item.category) + '</span>'
+          : '') +
       '</div>' +
       '<h3 class="mname">' + esc(keyword) + '<span>' + esc(suffix) + '</span></h3>' +
       (item.description ? '<p class="mdesc">' + esc(item.description) + '</p>' : '<p class="mdesc"></p>') +
@@ -465,7 +511,7 @@ export function marketHtml({ project, version, config, items }) {
   // 精品区是曝光位，全部区是完整清单（含精品）。两区都服务端渲染，
   // 买家在同一个页面里既能先看到挑出来的，也能翻完整列表
   const featuredBlock = featured.length
-    ? '<section class="mblock">' +
+    ? '<section class="mblock mblock-featured">' +
         '<div class="mblock-head"><h2>精品域名</h2>' +
           '<span class="mcount">' + featured.length + ' 个</span>' +
           '</div>' +
