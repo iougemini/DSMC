@@ -12,7 +12,7 @@
 
 import { escapeHtml as esc } from './data.js';
 import { icon } from './icons.js';
-import { FAVICON_LINK, THEME_COLOR_META } from './favicon.js';
+import { FAVICON_LINK } from './favicon.js';
 import { FOOTER_CSS, footerHtml } from './footer.js';
 import { formatPrice, sortEntries } from '../managers/market-store.js';
 
@@ -49,9 +49,10 @@ a{color:inherit;text-decoration:none}
 .mbrand .mark{width:50px;height:50px;border-radius:15px;display:grid;place-items:center;
 background:linear-gradient(180deg,#5F9BFF,#2F6BE8);color:#fff;flex:none}
 .mbrand b{font-size:22px;font-weight:650;letter-spacing:.2px}
-/* 右内边距是给右上角那个明暗切换按钮留的位置。
-   标题改成右对齐后会一路顶到容器右边缘，而按钮是 fixed 定位，
-   视口宽度不到 1180px 时两者就会重叠 —— 截图里能看到按钮压在标题上 */
+/* 右内边距是给右上角那个主题按钮留的位置：按钮落在卡片内侧右上角，
+   标题右对齐后会一路顶到容器右边缘，不让出这 44px 就会被按钮压住。
+   视口足够宽时按钮改贴视口角（见下方 @media），那时标题不再让位，
+   右边缘就能和下面那排联系方式、和「查看域名详情」严格对齐 */
 .mhtext{flex:1 1 260px;min-width:0;text-align:right;padding-right:44px}
 .mhead h1{margin:0;font-size:26px;line-height:1.25;letter-spacing:-.4px;font-weight:650}
 .mhead .intro{margin:4px 0 0;color:var(--text-2);font-size:13.5px;line-height:1.55}
@@ -66,8 +67,11 @@ font-family:inherit;line-height:1}
 button.contact{cursor:pointer}
 .contact.login{flex:none;margin-left:auto;color:var(--text-3)}
 
-/* 明暗切换 */
-.themebtn{position:fixed;top:16px;right:16px;z-index:40;width:34px;height:34px;display:grid;place-items:center;
+/* 主题切换。默认落在头部卡片的右上角内侧（absolute，定位基准是 .mhead）——
+   fixed 贴视口时，视口一旦窄到卡片顶到边，按钮就会压断 neo 那条 2px 黑描边。
+   只有视口宽到卡片和视口右缘之间空出 50px 以上（≥1240px）才改 fixed 贴角，
+   那时它离卡片足够远，标题也就不必再让位 */
+.themebtn{position:absolute;top:10px;right:10px;z-index:40;width:34px;height:34px;display:grid;place-items:center;
 border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;
 transition:color .16s,border-color .16s}
 .themebtn:hover{color:var(--text);border-color:rgba(95,155,255,.45)}
@@ -77,6 +81,14 @@ transition:color .16s,border-color .16s}
 .themebtn .spark{display:none}
 [data-theme="neo"] .themebtn .spark{display:block}
 [data-theme="neo"] .themebtn .moon{display:none}
+
+/* 卡片最宽 1120px 居中，视口 1240px 以上时卡片右缘离视口右缘还有 60px 空当，
+   按钮贴视口角（16+34=50）不会碰到卡片。这时把标题让出的 44px 收回来，
+   标题 / 介绍 / 联系方式 / 查看域名详情四条右边缘就落在同一条竖线上 */
+@media (min-width:1240px){
+  .themebtn{position:fixed;top:16px;right:16px}
+  .mhtext{padding-right:0}
+}
 
 /* 分区 */
 .mblock{margin-bottom:30px}
@@ -259,10 +271,8 @@ background:linear-gradient(transparent 56%,var(--hl) 56%,var(--hl) 94%,transpare
   .mname{font-size:18px}
   /* 手机上胶囊独占一行，登录按钮自然落到下一行右侧 —— 和改版前观感一致 */
   .contact-list{flex:1 1 100%}
-  /* 窄屏不再 fixed 贴视口：头部卡片是满宽的，按钮压在卡片右上角的描边上，
-     neo 主题下那条 2px 黑边被切断，看着像缺了个角。
-     改成卡片内 absolute，位置一样但不再破坏轮廓 */
-  .themebtn{position:absolute;top:10px;right:10px}
+  /* 标题换到第二行、改成左对齐，按钮在卡片右上角压着的是第一行，
+     让位交给 LOGO 那侧，标题这一侧就不用再留空 */
   .mhtext{padding-right:0}
   .mbrand{padding-right:42px}
 }
@@ -440,6 +450,14 @@ function cardHtml(item) {
 /** 三套主题的顺序。按钮点一下往后走一格，到末尾回到深色 */
 const THEMES = ['dark', 'light', 'neo'];
 
+/**
+ * 移动端地址栏（theme-color）的底色，跟米表主题走。
+ * 面板用的是按系统深浅色自动切的那套 meta，米表默认是奶油色的 neo ——
+ * 沿用面板那套，深色系统上会出现「奶油色页面配近黑状态栏」。
+ */
+const THEME_COLORS = { dark: '#070A0F', light: '#F6F7F9', neo: '#F4EFE3' };
+const THEME_COLOR_JS = JSON.stringify(THEME_COLORS);
+
 function themeButton() {
   return '<button type="button" class="themebtn" id="themebtn" aria-label="切换主题（深色 / 浅色 / 米表主题）">' +
     '<span class="moon">' + icon('moon', 15) + '</span>' +
@@ -449,24 +467,29 @@ function themeButton() {
 }
 
 /**
- * 首屏定主题，必须在 <head> 里跑，否则会先看到一帧深色再跳到奶油色。
+ * 首屏定主题，必须在 <head> 里跑，否则会先看到一帧服务端渲染的主题再跳。
  *
+ * 顺序：米表自己的键 → 面板共用的键 → 默认 neo。
  * 米表用**自己的**存储键 `dsmc-market-theme`：面板只有深/浅两套 CSS，
  * 把 neo 写进共用的 `dsmc-theme` 会让后台拿到一个没有变量的主题，整页塌掉。
- * 没设置过时回落到 `dsmc-theme`，老用户升级上来看到的样子不变。
+ * 回落到 `dsmc-theme` 是为了让升级上来的老用户保持自己选过的明暗。
  */
 function themeBootScript() {
-  return '<script>try{var t=localStorage.getItem("dsmc-market-theme")||localStorage.getItem("dsmc-theme");' +
-    'if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>';
+  return '<script>try{var t=localStorage.getItem("dsmc-market-theme")||localStorage.getItem("dsmc-theme")||"neo";' +
+    'document.documentElement.dataset.theme=t;' +
+    'var c=' + THEME_COLOR_JS + ',m=document.querySelector("meta[name=theme-color]");' +
+    'if(m&&c[t])m.setAttribute("content",c[t]);}catch(e){}</script>';
 }
 
 function themeToggleScript() {
   return 'var root=document.documentElement,btn=document.getElementById("themebtn");' +
-    'var order=' + JSON.stringify(THEMES) + ';' +
+    'var order=' + JSON.stringify(THEMES) + ',colors=' + THEME_COLOR_JS + ';' +
+    'var meta=document.querySelector("meta[name=theme-color]");' +
     'if(btn)btn.addEventListener("click",function(){' +
       'var i=order.indexOf(root.dataset.theme);' +
       'var t=order[(i+1)%order.length];' +
       'root.dataset.theme=t;' +
+      'if(meta&&colors[t])meta.setAttribute("content",colors[t]);' +
       'try{localStorage.setItem("dsmc-market-theme",t);}catch(e){}});';
 }
 
@@ -480,14 +503,17 @@ function qrOverlay() {
 }
 
 function pageShell({ project, version, title, body, extraCss }) {
-  return '<!DOCTYPE html>\n<html lang="zh-CN" data-theme="dark">\n<head>\n' +
+  // 服务端也直接渲染成 neo：禁用 JS 或脚本被拦时看到的就是默认主题，
+  // 而不是先白/黑一帧再跳（脚本只负责按 localStorage 覆盖）
+  return '<!DOCTYPE html>\n<html lang="zh-CN" data-theme="neo">\n<head>\n' +
     '<meta charset="UTF-8">\n' +
     '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
-    '<meta name="color-scheme" content="dark light">\n' +
+    '<meta name="color-scheme" content="light dark">\n' +
     '<meta name="description" content="' + esc(project.DESCRIPTION || '') + '">\n' +
     '<title>' + esc(title) + '</title>\n' +
-    FAVICON_LINK + THEME_COLOR_META +
-    // 主题在 <head> 里就定下来，避免亮色用户先看到一帧深色
+    FAVICON_LINK +
+    '<meta name="theme-color" content="' + THEME_COLORS.neo + '">\n' +
+    // 主题在 <head> 里就定下来，避免选过浅色的用户先看到一帧奶油色
     themeBootScript() + '\n' +
     '<style>' + MARKET_CSS + FOOTER_CSS + (extraCss || '') + '</style>\n' +
     '</head>\n<body>\n' + body + '\n</body>\n</html>';

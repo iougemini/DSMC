@@ -5,7 +5,7 @@
 <img src="./logo.svg" width="120" height="120" alt="DSMC — Domain Status Manager for Cloudflare">
 
 --- 
-![Version](https://img.shields.io/badge/version-2.9.2-blue.svg)
+![Version](https://img.shields.io/badge/version-2.9.3-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-orange.svg)
 
@@ -308,7 +308,7 @@ GET {WHOIS_PROXY}/api/lookup?query={要查询的域名}
 
 请求头：
 - `Accept: application/json`
-- `User-Agent: DSMC/2.9.2`
+- `User-Agent: DSMC/2.9.3`
 - `Cache-Control: no-cache`
 
 请求默认超时 30 秒，失败后自动重试（最多 3 次）。
@@ -531,15 +531,17 @@ wrangler secret put WHOIS_PROXY
 
 - **精品独立成区** —— 标了精品的域名在上面单独一区，完整清单在下面。手机端精品区
   自动改成横向滑动（两区内容重复，纵向铺开会把页面拉长一倍）
-- **三套主题** —— 右上角一键循环：**深色 → 浅色 → 米表主题（neo）**。
+- **三套主题，默认 neo** —— 右上角一键循环：**深色 → 浅色 → 米表主题（neo）**。
   neo 是奶油底 + 黑描边 + 硬投影 + 荧光笔高亮的"印刷品"观感，
   标题和价格上那道黄是 `linear-gradient` 划出来的，不是背景色
+  - 没选过主题时就是 neo（服务端直接渲染，禁用 JS 也是 neo，不会先闪一帧深色）；
+    地址栏底色跟着主题走，切到深色时手机上那条也是深的
   - 除了荧光笔黄，还配了柠檬绿 / 天蓝 / 粉 / 沙黄 / 浅紫一套色板：
     精品区整块淡紫、分类标签按分类名分色、四个联系方式各一层浅底、主按钮紫底白字。
     颜色只落在小面积元素上，卡片底色始终是奶油色 —— 反过来给每张卡上色就是调色盘
   - 米表用**自己的**存储键 `dsmc-market-theme`，没设置过时回落到面板共用的
-    `dsmc-theme`。不共用的原因：面板只有深/浅两套 CSS，把 neo 写进共用键，
-    回后台会拿到一个没有变量的主题，整页塌掉
+    `dsmc-theme`，两者都没有才用 neo。不共用的原因：面板只有深/浅两套 CSS，
+    把 neo 写进共用键，回后台会拿到一个没有变量的主题，整页塌掉
   - 选了主题只影响米表，后台面板仍是深/浅两套
 - **标题居右** —— LOGO（50px）在左、标题与介绍在右，中间留白。窄屏（≤560px）
   文字块独占一行时退回左对齐

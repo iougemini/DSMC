@@ -283,9 +283,19 @@ test('页面带主题切换按钮，三套主题都在 CSS 里定义', () => {
   const html = render([ITEM]);
 
   assert.match(html, /id="themebtn"/);
-  assert.match(html, /data-theme="dark"/);
   assert.match(html, /data-theme="light"/, '浅色主题的变量要预先定义好');
   assert.match(html, /\[data-theme="neo"\]\{--bg:/, 'neo 主题要有自己的一套变量');
+  // 深色是 :root 里的默认变量，没有 [data-theme="dark"] 这一段
+  assert.match(html, /:root\{--bg:#070A0F/, '深色变量要留在 :root 上');
+});
+
+test('默认主题是 neo：服务端直接渲染，脚本只负责按存储覆盖', () => {
+  const html = render([ITEM]);
+
+  assert.match(html, /<html lang="zh-CN" data-theme="neo">/,
+    '禁用 JS 时也要看到 neo，不能先渲染深色再靠脚本跳');
+  assert.match(html, /\|\|"neo"/, '没存过任何主题时默认 neo');
+  assert.match(html, /content="#F4EFE3"/, '地址栏底色要跟着默认主题走，否则深色系统上是近黑状态栏配奶油页');
 });
 
 test('主题按钮按 深色 → 浅色 → 米表 三态循环', () => {
@@ -325,6 +335,20 @@ test('neo 的色板落在变量里，色块本身仍是奶油底', () => {
   assert.match(MARKET_CSS, /\[data-theme="neo"\]\{[^}]*--lime:#C8F169/);
   assert.match(MARKET_CSS, /--panel:#EDE6FF/);
   assert.ok(!/\[data-theme="neo"\] \.mcard\[data-tone/.test(MARKET_CSS), '卡片本身不按分类上色');
+});
+
+test('宽屏下标题右边缘与联系方式行对齐', () => {
+  // 标题平时要让出 44px 给卡片右上角的主题按钮；宽屏时按钮贴到视口角、
+  // 离卡片足够远，这 44px 必须收回来，否则标题比下面那排胶囊短一截
+  assert.match(MARKET_CSS, /\.mhtext\{[^}]*padding-right:44px\}/, '窄屏仍要让位给按钮');
+
+  const wide = MARKET_CSS.match(/@media \(min-width:1240px\)\{([\s\S]*?)\n\}/);
+  assert.ok(wide, '缺了宽屏媒体查询，主题按钮会一直贴在卡片里');
+  assert.match(wide[1], /\.themebtn\{position:fixed;top:16px;right:16px\}/, '宽屏按钮贴视口角');
+  assert.match(wide[1], /\.mhtext\{padding-right:0\}/, '宽屏不再让位，右边缘才能对齐');
+
+  // 按钮默认落在卡片内，不能是 fixed —— 视口窄到卡片顶边时会切断 neo 的描边
+  assert.match(MARKET_CSS, /\.themebtn\{position:absolute;top:10px;right:10px/);
 });
 
 test('分类色号按分类名算，同分类全页同色且可复现', () => {
